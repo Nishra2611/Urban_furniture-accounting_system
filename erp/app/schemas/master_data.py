@@ -12,6 +12,8 @@ class ContactCreate(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    tax_id: Optional[str] = None
+    image_url: Optional[str] = None
     receivable_account_id: Optional[int] = None
     payable_account_id: Optional[int] = None
 
@@ -28,6 +30,9 @@ class ProductCreate(BaseModel):
     code: str
     name: str
     description: Optional[str] = None
+    product_type: str = "Goods"
+    category: Optional[str] = None
+    image_url: Optional[str] = None
     sales_price: Decimal = Decimal("0")
     purchase_price: Decimal = Decimal("0")
     tax_rate: Decimal = Decimal("0")
@@ -120,6 +125,7 @@ class JournalEntryOut(BaseModel):
 class AnalyticAccountCreate(BaseModel):
     code: str
     name: str
+    type: str = "Expense"
 
 
 class AnalyticAccountOut(AnalyticAccountCreate):
@@ -136,6 +142,10 @@ class AnalyticBudgetCreate(BaseModel):
     period_start: str
     period_end: str
     budget_amount: Decimal
+    responsible_name: Optional[str] = None
+    stage: str = "Draft"
+    revised_with: Optional[str] = None
+    revision_of: Optional[str] = None
 
 
 class AnalyticBudgetOut(AnalyticBudgetCreate):

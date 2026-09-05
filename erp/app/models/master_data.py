@@ -20,6 +20,8 @@ class Contact(Base, TimestampMixin, ActiveMixin):
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tax_id: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Linked receivable/payable account for this party, used when posting accounting entries.
     receivable_account_id: Mapped[Optional[int]] = mapped_column(
@@ -37,6 +39,9 @@ class Product(Base, TimestampMixin, ActiveMixin):
     code: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    product_type: Mapped[str] = mapped_column(String(20), default="Goods", nullable=False)
+    category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     sales_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, nullable=False)
     purchase_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, nullable=False)
     tax_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0, nullable=False)
@@ -78,6 +83,7 @@ class AnalyticAccount(Base, TimestampMixin, ActiveMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     code: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    type: Mapped[str] = mapped_column(String(20), default="Expense", nullable=False)
 
 
 class AnalyticBudget(Base, TimestampMixin, ActiveMixin):
@@ -91,5 +97,9 @@ class AnalyticBudget(Base, TimestampMixin, ActiveMixin):
     period_start: Mapped[str] = mapped_column(String(10), nullable=False)  # ISO date
     period_end: Mapped[str] = mapped_column(String(10), nullable=False)
     budget_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, nullable=False)
+    responsible_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    stage: Mapped[str] = mapped_column(String(20), default="Draft", nullable=False)
+    revised_with: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    revision_of: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     # Achieved/Committed are derived at report time from actual transactions,
     # not stored as separately-editable fields.

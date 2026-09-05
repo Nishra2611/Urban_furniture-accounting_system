@@ -336,13 +336,64 @@ function Master({ kind }: { kind: keyof typeof configs }) {
     e.preventDefault();
     setError('');
     try {
-      const payload = { ...form };
-      for (const k of ['sales_price', 'purchase_price', 'tax_rate', 'budget_amount']) {
-        if (payload[k] !== undefined && payload[k] !== '') payload[k] = Number(payload[k]);
+      const cleanName = String(form.name || 'New Record').trim();
+      const generatedCode = cleanName.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || `REC-${Date.now()}`;
+      const address = [form.street, form.city, form.state, form.country && form.pincode ? `${form.country} - ${form.pincode}` : form.country || form.pincode]
+        .filter(Boolean).join(', ');
+      const selectedAnalytic = analyticsList.find((item) => String(item.id) === String(form.analytic_account_id)
+        || item.name === form.lines?.[0]?.analytic_name);
+      let payload: any;
+
+      if (kind === 'contacts') {
+        payload = {
+          code: form.code || generatedCode,
+          name: cleanName,
+          party_type: ({ customer: 'Customer', vendor: 'Vendor', both: 'Both' } as any)[form.contact_type || form.party_type] || form.party_type || 'Customer',
+          email: form.email || null,
+          phone: form.phone || null,
+          address: form.address || address || null,
+          tax_id: form.tax_id || null,
+          image_url: form.image_url || null,
+        };
+      } else if (kind === 'products') {
+        payload = {
+          code: form.code || generatedCode,
+          name: cleanName,
+          description: form.description || null,
+          product_type: form.product_type || 'Goods',
+          category: form.category || null,
+          image_url: form.image_url || null,
+          sales_price: Number(form.sales_price ?? form.unit_price ?? 0),
+          purchase_price: Number(form.purchase_price ?? form.cost_price ?? 0),
+          tax_rate: Number(form.tax_rate || 0),
+          track_stock: Boolean(form.track_stock ?? true),
+          income_account_id: form.income_account_id ? Number(form.income_account_id) : null,
+          expense_account_id: form.expense_account_id ? Number(form.expense_account_id) : null,
+        };
+      } else if (kind === 'taxes') {
+        payload = { name: cleanName, rate: Number(form.rate || 0), tax_type: form.tax_type || 'percentage' };
+      } else if (kind === 'accounts') {
+        const accountType = ['Asset', 'Liability', 'Equity', 'Income', 'Expense'].includes(form.account_type)
+          ? form.account_type : 'Asset';
+        payload = { code: form.code || generatedCode, name: cleanName, account_type: accountType,
+          parent_id: form.parent_id ? Number(form.parent_id) : null };
+      } else if (kind === 'journals') {
+        payload = { code: form.code || generatedCode, name: cleanName, journal_type: form.journal_type || 'Miscellaneous',
+          default_debit_account_id: form.default_account_id ? Number(form.default_account_id) : null,
+          default_credit_account_id: form.default_credit_account_id ? Number(form.default_credit_account_id) : null };
+      } else if (kind === 'analytics') {
+        payload = { code: form.code || generatedCode, name: cleanName, type: form.type || 'Expense' };
+      } else {
+        payload = { name: cleanName, analytic_account_id: Number(form.analytic_account_id || selectedAnalytic?.id),
+          period_start: form.period_start || form.start_date || '2026-01-01',
+          period_end: form.period_end || form.end_date || '2026-12-31',
+          budget_amount: Number(form.budget_amount ?? form.amount ?? form.committed_amount ?? form.lines?.[0]?.committed_amount ?? 0),
+          responsible_name: form.responsible_name || null,
+          stage: form.stage || 'Draft',
+          revised_with: form.revised_with || null,
+          revision_of: form.revision_of || form.revised_from || null };
       }
-      for (const k of ['email', 'phone', 'address', 'tax_id', 'parent_id', 'analytic_account_id']) {
-        if (payload[k] === '') payload[k] = null;
-      }
+
       await c.api.create(payload);
       await load();
       setForm(null);
@@ -361,97 +412,6 @@ function Master({ kind }: { kind: keyof typeof configs }) {
     }
   };
 
-<<<<<<< HEAD
-  if (form) {
-    return (
-      <div className="modal-overlay" role="dialog" aria-modal="true">
-        <div className="form-modal">
-        <PageHeader
-          title={c.title + ' · ' + (form.id ? 'Edit' : 'New')}
-          subtitle="The same form is used for creating and reviewing saved records."
-          back={() => setForm(null)}
-        />
-        <form className="record-form" onSubmit={save}>
-          <div className="form-grid">
-            {c.fields.map((f: any) => (
-              <Field key={f[0]} label={f[1]} required={f[3]}>
-                {f[2] === 'textarea' ? (
-                  <textarea
-                    value={form[f[0]] || ''}
-                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value })}
-                  />
-                ) : f[2] === 'select' ? (
-                  <select
-                    value={form[f[0]] || ''}
-                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value })}
-                  >
-                    <option value="">Select...</option>
-                    {f[4].map((x: string) => (
-                      <option key={x} value={x}>
-                        {x}
-                      </option>
-                    ))}
-                  </select>
-                ) : f[2] === 'selectAccount' ? (
-                  <select
-                    value={form[f[0]] || ''}
-                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value || null })}
-                  >
-                    <option value="">Select account...</option>
-                    {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.code} · {a.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : f[2] === 'selectAnalytic' ? (
-                  <select
-                    value={form[f[0]] || ''}
-                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value || null })}
-                  >
-                    <option value="">Select analytic account...</option>
-                    {analytics.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.code} · {a.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : f[2] === 'selectTax' ? (
-                  <select
-                    value={form[f[0]] || ''}
-                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value || null })}
-                  >
-                    <option value="">No tax</option>
-                    {taxes.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} · {t.rate}%
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={f[2]}
-                    value={form[f[0]] ?? ''}
-                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value })}
-                  />
-                )}
-              </Field>
-            ))}
-          </div>
-          {error && <div className="error">{error}</div>}
-          <div className="form-actions">
-            <Button type="submit">CONFIRM</Button>
-            <Button type="button" variant="secondary" onClick={() => setForm(null)}>
-              BACK
-            </Button>
-          </div>
-        </form>
-        </div>
-      </div>
-    );
-  }
-=======
->>>>>>> 74c71b51d1db3684629a506f52bab53be5f9ed02
 
   return (
     <>
