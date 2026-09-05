@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import require_accountant_or_admin
+from app.core.deps import require_accountant_or_admin, require_admin
 from app.models.user import User
 from app.models.master_data import Contact, Product, Tax, ChartOfAccount, AnalyticAccount, AnalyticBudget
 from app.models.accounting import Journal
@@ -29,7 +29,7 @@ def list_contacts(db: Session = Depends(get_db), _: User = Depends(require_accou
 
 @router.post("/contacts/{contact_id}/deactivate", response_model=ContactOut)
 def deactivate_contact(contact_id: int, db: Session = Depends(get_db),
-                        _: User = Depends(require_accountant_or_admin)):
+                        _: User = Depends(require_admin)):
     return svc.deactivate(db, Contact, contact_id)
 
 
@@ -57,13 +57,13 @@ def list_taxes(db: Session = Depends(get_db), _: User = Depends(require_accounta
 
 @router.post("/taxes/{tax_id}/deactivate", response_model=TaxOut)
 def deactivate_tax(tax_id: int, db: Session = Depends(get_db),
-                   _: User = Depends(require_accountant_or_admin)):
+                   _: User = Depends(require_admin)):
     return svc.deactivate(db, Tax, tax_id)
 
 
 @router.post("/products/{product_id}/deactivate", response_model=ProductOut)
 def deactivate_product(product_id: int, db: Session = Depends(get_db),
-                        _: User = Depends(require_accountant_or_admin)):
+                        _: User = Depends(require_admin)):
     return svc.deactivate(db, Product, product_id)
 
 
@@ -78,6 +78,12 @@ def list_accounts(db: Session = Depends(get_db), _: User = Depends(require_accou
     return db.query(ChartOfAccount).filter(ChartOfAccount.is_active.is_(True)).all()
 
 
+@router.post("/chart-of-accounts/{account_id}/deactivate", response_model=ChartOfAccountOut)
+def deactivate_account(account_id: int, db: Session = Depends(get_db),
+                       _: User = Depends(require_admin)):
+    return svc.deactivate(db, ChartOfAccount, account_id)
+
+
 @router.post("/journals", response_model=JournalOut, status_code=201)
 def create_journal(payload: JournalCreate, db: Session = Depends(get_db),
                     _: User = Depends(require_accountant_or_admin)):
@@ -87,6 +93,12 @@ def create_journal(payload: JournalCreate, db: Session = Depends(get_db),
 @router.get("/journals", response_model=list[JournalOut])
 def list_journals(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     return db.query(Journal).filter(Journal.is_active.is_(True)).all()
+
+
+@router.post("/journals/{journal_id}/deactivate", response_model=JournalOut)
+def deactivate_journal(journal_id: int, db: Session = Depends(get_db),
+                       _: User = Depends(require_admin)):
+    return svc.deactivate(db, Journal, journal_id)
 
 
 @router.post("/analytic-accounts", response_model=AnalyticAccountOut, status_code=201)
@@ -100,6 +112,12 @@ def list_analytic_accounts(db: Session = Depends(get_db), _: User = Depends(requ
     return db.query(AnalyticAccount).filter(AnalyticAccount.is_active.is_(True)).all()
 
 
+@router.post("/analytic-accounts/{account_id}/deactivate", response_model=AnalyticAccountOut)
+def deactivate_analytic_account(account_id: int, db: Session = Depends(get_db),
+                                _: User = Depends(require_admin)):
+    return svc.deactivate(db, AnalyticAccount, account_id)
+
+
 @router.post("/analytic-budgets", response_model=AnalyticBudgetOut, status_code=201)
 def create_analytic_budget(payload: AnalyticBudgetCreate, db: Session = Depends(get_db),
                             _: User = Depends(require_accountant_or_admin)):
@@ -109,3 +127,9 @@ def create_analytic_budget(payload: AnalyticBudgetCreate, db: Session = Depends(
 @router.get("/analytic-budgets", response_model=list[AnalyticBudgetOut])
 def list_analytic_budgets(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     return db.query(AnalyticBudget).all()
+
+
+@router.post("/analytic-budgets/{budget_id}/deactivate", response_model=AnalyticBudgetOut)
+def deactivate_analytic_budget(budget_id: int, db: Session = Depends(get_db),
+                               _: User = Depends(require_admin)):
+    return svc.deactivate(db, AnalyticBudget, budget_id)

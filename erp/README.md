@@ -86,14 +86,14 @@ pay dues).
 
 ## 5. Roles
 
-- **User** — portal only: own invoices/bills, payment status, pay dues.
-- **Accountant** — master data, transactions, journal entries, and reports.
-- **Administrator** — everything.
+- **Contact User** (`User`) — portal only: own invoices, payment status, and pay dues.
+- **Accountant** — master data, transactions, journal entries, and reports; cannot archive master data or manage users.
+- **Administrator** — everything, including user management and archiving master records.
 
 Every privileged endpoint checks the role from the authenticated JWT on the backend —
 never trusts a client-supplied role. Signup (self-registration) never accepts a role at
-all; only `/api/v1/auth/create-user` (Administrator only) can grant User, Accountant,
-or Administrator roles.
+all; only `/api/v1/auth/create-user` (Administrator only) can provision Contact User or
+Accountant roles. Administrator accounts are provisioned during system setup.
 
 ## 6. Business rules implemented
 

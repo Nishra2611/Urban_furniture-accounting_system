@@ -94,6 +94,16 @@ def test_accountant_cannot_manage_users(client, db_session):
     }).status_code == 403
 
 
+def test_contact_user_cannot_access_staff_or_portal_without_contact(client):
+    client.post("/api/v1/auth/signup", json={
+        "login_id": "portalusr1", "email": "portalusr@test.com",
+        "password": "Str0ng!Pass", "re_password": "Str0ng!Pass",
+    })
+    headers = auth_headers(client, "portalusr1", "Str0ng!Pass")
+    assert client.get("/api/v1/dashboard", headers=headers).status_code == 403
+    assert client.get("/api/v1/portal/my-invoices", headers=headers).status_code == 422
+
+
 def test_admin_can_create_accountant(client, db_session):
     headers = create_admin(client, db_session)
     resp = client.post("/api/v1/auth/create-user", headers=headers, json={

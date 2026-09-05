@@ -60,7 +60,9 @@ export default function Layout() {
   const isUserRole = userRole === 'user';
   const isAdminRole = userRole === 'admin' || userRole === 'administrator';
 
-  const visibleGroups: NavGroup[] = groups;
+  const visibleGroups: NavGroup[] = isUserRole
+    ? [['Overview', [['My Portal', '/portal', Receipt]]]]
+    : groups.map(([title, items]) => [title, items.filter(([, path]) => path !== '/portal')] as NavGroup);
   const nav = useNavigate();
 
   return (

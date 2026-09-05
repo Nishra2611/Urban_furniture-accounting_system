@@ -24,7 +24,9 @@ export function JournalEntries() {
   }, []);
 
   return form ? (
-    <EntryForm onDone={() => { setForm(false); load(); }} />
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <EntryForm onDone={() => { setForm(false); load(); }} />
+    </div>
   ) : (
     <>
       <PageHeader

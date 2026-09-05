@@ -34,20 +34,22 @@ export const masters = {
   accounts: {
     list: () => api.get('/chart-of-accounts'),
     create: (d: any) => api.post('/chart-of-accounts', d),
-    deactivate: async (id: any) => ({ data: id }),
+    deactivate: (id: string | number) => api.post(`/chart-of-accounts/${id}/deactivate`),
   },
   journals: {
     list: () => api.get('/journals'),
     create: (d: any) => api.post('/journals', d),
-    deactivate: async (id: any) => ({ data: id }),
+    deactivate: (id: string | number) => api.post(`/journals/${id}/deactivate`),
   },
   analytics: {
     list: () => api.get('/analytic-accounts'),
     create: (d: any) => api.post('/analytic-accounts', d),
+    deactivate: (id: string | number) => api.post(`/analytic-accounts/${id}/deactivate`),
   },
   budgets: {
     list: () => api.get('/analytic-budgets'),
     create: (d: any) => api.post('/analytic-budgets', d),
+    deactivate: (id: string | number) => api.post(`/analytic-budgets/${id}/deactivate`),
   },
 };
 
@@ -118,6 +120,9 @@ export const dashboard = () => api.get('/dashboard');
 
 export const portal = {
   myInvoices: () => api.get('/portal/my-invoices'),
+  myBills: () => api.get('/portal/my-bills'),
+  myPayments: () => api.get('/portal/my-payments'),
   pay: (d: any) => api.post('/portal/pay', d),
+  payBill: (d: any) => api.post('/portal/pay-bill', d),
 };
 

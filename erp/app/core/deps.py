@@ -57,4 +57,5 @@ def require_roles(*roles: UserRole):
 
 require_admin = require_roles(UserRole.ADMINISTRATOR)
 require_accountant_or_admin = require_roles(UserRole.ACCOUNTANT, UserRole.ADMINISTRATOR)
+require_contact_user = require_roles(UserRole.USER)
 require_any_role = require_roles(UserRole.USER, UserRole.ACCOUNTANT, UserRole.ADMINISTRATOR)

@@ -16,7 +16,7 @@ function Guard({ children, roles }: { children: any; roles?: string[] }) {
   const userRole = normalizeRole(user.role);
 
   if (roles && !roles.includes(userRole)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={userRole === 'user' ? '/portal' : '/dashboard'} replace />;
   }
 
   return children;
@@ -32,26 +32,26 @@ export default function App() {
       <Route path="/forgot-password" element={<Forgot />} />
       <Route path="/reset-password" element={<Reset />} />
       <Route element={<Guard><Layout /></Guard>}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/portal" element={<Portal />} />
-        <Route path="/masters/contacts" element={<Contacts />} />
-        <Route path="/masters/products" element={<Products />} />
-        <Route path="/masters/accounts" element={<Accounts />} />
-        <Route path="/masters/journals" element={<Journals />} />
-        <Route path="/masters/analytics" element={<Analytics />} />
-        <Route path="/masters/budgets" element={<Budgets />} />
-        <Route path="/sales/orders" element={<Documents kind="salesOrders" />} />
-        <Route path="/sales/invoices" element={<Documents kind="invoices" />} />
-        <Route path="/purchase/orders" element={<Documents kind="purchaseOrders" />} />
-        <Route path="/purchase/bills" element={<Documents kind="bills" />} />
-        <Route path="/payments/customer" element={<Payments type="customer" />} />
-        <Route path="/payments/vendor" element={<Payments type="vendor" />} />
-        <Route path="/payments/new" element={<PaymentForm />} />
-        <Route path="/accounting/entries" element={<JournalEntries />} />
-        <Route path="/reports/pl" element={<ProfitLoss />} />
-        <Route path="/reports/bs" element={<BalanceSheet />} />
-        <Route path="/reports/budget" element={<BudgetReport />} />
-        <Route path="/reports/ledger" element={<Ledger />} />
+        <Route path="/dashboard" element={<Guard roles={['accountant','admin']}><Dashboard /></Guard>} />
+        <Route path="/portal" element={<Guard roles={['user']}><Portal /></Guard>} />
+        <Route path="/masters/contacts" element={<Guard roles={['accountant','admin']}><Contacts /></Guard>} />
+        <Route path="/masters/products" element={<Guard roles={['accountant','admin']}><Products /></Guard>} />
+        <Route path="/masters/accounts" element={<Guard roles={['accountant','admin']}><Accounts /></Guard>} />
+        <Route path="/masters/journals" element={<Guard roles={['accountant','admin']}><Journals /></Guard>} />
+        <Route path="/masters/analytics" element={<Guard roles={['accountant','admin']}><Analytics /></Guard>} />
+        <Route path="/masters/budgets" element={<Guard roles={['accountant','admin']}><Budgets /></Guard>} />
+        <Route path="/sales/orders" element={<Guard roles={['accountant','admin']}><Documents kind="salesOrders" /></Guard>} />
+        <Route path="/sales/invoices" element={<Guard roles={['accountant','admin']}><Documents kind="invoices" /></Guard>} />
+        <Route path="/purchase/orders" element={<Guard roles={['accountant','admin']}><Documents kind="purchaseOrders" /></Guard>} />
+        <Route path="/purchase/bills" element={<Guard roles={['accountant','admin']}><Documents kind="bills" /></Guard>} />
+        <Route path="/payments/customer" element={<Guard roles={['accountant','admin']}><Payments type="customer" /></Guard>} />
+        <Route path="/payments/vendor" element={<Guard roles={['accountant','admin']}><Payments type="vendor" /></Guard>} />
+        <Route path="/payments/new" element={<Guard roles={['accountant','admin']}><PaymentForm /></Guard>} />
+        <Route path="/accounting/entries" element={<Guard roles={['accountant','admin']}><JournalEntries /></Guard>} />
+        <Route path="/reports/pl" element={<Guard roles={['accountant','admin']}><ProfitLoss /></Guard>} />
+        <Route path="/reports/bs" element={<Guard roles={['accountant','admin']}><BalanceSheet /></Guard>} />
+        <Route path="/reports/budget" element={<Guard roles={['accountant','admin']}><BudgetReport /></Guard>} />
+        <Route path="/reports/ledger" element={<Guard roles={['accountant','admin']}><Ledger /></Guard>} />
         <Route path="/admin/users" element={<Guard roles={['admin']}><Admin /></Guard>} />
       </Route>
       <Route path="/" element={<Navigate to={defaultHome} replace />} />

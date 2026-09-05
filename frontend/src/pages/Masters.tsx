@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { masters, err } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { Button, Empty, Field, PageHeader, Status, Toolbar, money } from '../components/UI';
 import type { Contact, Product, Tax, Account, Journal, Analytic, Budget } from '../types/api';
 
@@ -192,6 +193,9 @@ const DEFAULT_BUDGETS = [
 function Master({ kind }: { kind: keyof typeof configs }) {
   const c = configs[kind];
   const nav = useNavigate();
+  const { user } = useAuth();
+  const role = user?.role?.toLowerCase();
+  const isAdmin = role === 'administrator' || role === 'admin';
   const [rows, setRows] = useState<any[]>([]);
   const [q, setQ] = useState('');
   const [view, setView] = useState<'list' | 'kanban'>('list');
@@ -359,7 +363,8 @@ function Master({ kind }: { kind: keyof typeof configs }) {
 
   if (form) {
     return (
-      <>
+      <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div className="form-modal">
         <PageHeader
           title={c.title + ' · ' + (form.id ? 'Edit' : 'New')}
           subtitle="The same form is used for creating and reviewing saved records."
@@ -440,7 +445,8 @@ function Master({ kind }: { kind: keyof typeof configs }) {
             </Button>
           </div>
         </form>
-      </>
+        </div>
+      </div>
     );
   }
 
@@ -602,7 +608,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                     </>
                   )}
                   <td>
-                    {c.api?.deactivate && (
+                    {isAdmin && c.api?.deactivate && (
                       <button
                         className="text-btn"
                         onClick={(e) => {

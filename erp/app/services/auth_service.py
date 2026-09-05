@@ -12,6 +12,7 @@ from app.core.security import (
     create_access_token, decode_access_token,
 )
 from app.models.user import User, PasswordHistory, RevokedToken, PasswordResetToken
+from app.models.master_data import Contact
 from app.models.enums import UserRole
 from app.schemas.auth import SignupRequest, LoginRequest, CreateUserRequest
 from app.services.audit_service import log_action
@@ -49,12 +50,15 @@ def signup(db: Session, payload: SignupRequest) -> User:
     _check_password_rules(payload.password, payload.re_password)
     _check_unique_login_and_email(db, payload.login_id, payload.email)
 
+    contact = db.query(Contact).filter(func.lower(Contact.email) == payload.email.lower()).first()
     user = User(
+        name=contact.name if contact else None,
         login_id=payload.login_id,
         email=payload.email,
         hashed_password=hash_password(payload.password),
         role=UserRole.USER,
         is_active=True,
+        contact_id=contact.id if contact else None,
     )
     db.add(user)
     try:
@@ -74,18 +78,22 @@ def signup(db: Session, payload: SignupRequest) -> User:
 
 
 def create_user(db: Session, payload: CreateUserRequest, creator: User) -> User:
+    if payload.role == UserRole.ADMINISTRATOR:
+        raise HTTPException(status_code=403, detail="Administrator accounts are provisioned during system setup")
     _check_password_rules(payload.password, payload.re_password)
     _check_unique_login_and_email(db, payload.login_id, payload.email)
 
     # Role must be explicitly chosen by the caller (enforced by Pydantic requiring the field);
     # it is never silently defaulted to Administrator.
+    contact = db.query(Contact).filter(func.lower(Contact.email) == payload.email.lower()).first()
     user = User(
-        name=payload.name,
+        name=payload.name or (contact.name if contact else None),
         login_id=payload.login_id,
         email=payload.email,
         hashed_password=hash_password(payload.password),
         role=payload.role,
         is_active=True,
+        contact_id=contact.id if payload.role == UserRole.USER and contact else None,
     )
     db.add(user)
     try:
