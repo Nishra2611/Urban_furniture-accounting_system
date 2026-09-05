@@ -1,0 +1,11 @@
+import {ReactNode} from 'react';import {Search,Plus,ArrowLeft,RefreshCw,Archive,Eye,MoreHorizontal,AlertCircle} from 'lucide-react';
+export const money=(v:any)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(v||0));
+export function PageHeader({title,subtitle,action,back}:{title:string;subtitle?:string;action?:ReactNode;back?:()=>void}){return <div className="page-header">{back&&<button className="back-btn" onClick={back}><ArrowLeft size={17}/></button>}<div><h1>{title}</h1>{subtitle&&<p>{subtitle}</p>}</div>{action&&<div className="header-actions">{action}</div>}</div>}
+export function Toolbar({search,onSearch,action,refresh}:{search?:string;onSearch?:(s:string)=>void;action?:ReactNode;refresh?:()=>void}){return <div className="toolbar">{onSearch&&<div className="search"><Search size={17}/><input value={search||''} onChange={e=>onSearch(e.target.value)} placeholder="Search..."/></div>}<div className="toolbar-actions">{refresh&&<button className="icon-btn" onClick={refresh} title="Refresh"><RefreshCw size={16}/></button>}{action}</div></div>}
+export function Button({children,variant='primary',...p}:{children:ReactNode;variant?:'primary'|'secondary'|'danger'|'ghost'}&React.ButtonHTMLAttributes<HTMLButtonElement>){return <button className={'btn '+variant} {...p}>{children}</button>}
+export function Status({value}:{value?:string}){const v=(value||'').toLowerCase();return <span className={'status '+v}>{value||'Unknown'}</span>}
+export function Empty({text='No records found'}:{text?:string}){return <div className="empty"><AlertCircle size={24}/><b>{text}</b><span>Try changing your filters or create a new record.</span></div>}
+export function Field({label,children,required}:{label:string;children:ReactNode;required?:boolean}){return <label className="field"><span>{label}{required&&<i> *</i>}</span>{children}</label>}
+export function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}){return <div className="modal-backdrop"><div className="modal"><div className="modal-head"><h3>{title}</h3><button className="icon-btn" onClick={onClose}>×</button></div>{children}</div></div>}
+export const ActionIcon=({children,...p}:any)=><button className="icon-btn small" {...p}>{children}</button>
+export const icons={Search,Plus,ArrowLeft,Archive,Eye,MoreHorizontal}
