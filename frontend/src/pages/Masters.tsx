@@ -50,9 +50,15 @@ export function MiniPieChart({ achieved = 0, committed = 0 }: { achieved: number
 }
 
 function budgetProgress(record: any) {
-  const committed = Number(record.budget_amount ?? record.committed_amount ?? record.amount ?? record.lines?.[0]?.committed_amount ?? 0);
+  const storedLinesStr = localStorage.getItem(`budget_lines_${record.id}`) || localStorage.getItem(`budget_lines_${record.name}`);
+  let lines = storedLinesStr ? JSON.parse(storedLinesStr) : record.lines;
+  let committed = Number(record.budget_amount ?? record.committed_amount ?? record.amount ?? 0);
+  if (lines && lines.length > 0) {
+    const linesSum = lines.reduce((acc: number, l: any) => acc + Number(l.committed_amount || 0), 0);
+    if (linesSum > 0) committed = linesSum;
+  }
   const stage = String(record.stage || 'Draft').toLowerCase();
-  const achieved = stage === 'confirmed' || stage === 'confirm'
+  const achieved = (stage === 'confirmed' || stage === 'confirm')
     ? committed
     : stage === 'draft'
     ? 0
@@ -323,20 +329,32 @@ function Master({ kind }: { kind: keyof typeof configs }) {
         type: r.type || 'Expense',
       });
     } else if (kind === 'budgets') {
+      const storedLinesStr = localStorage.getItem(`budget_lines_${r.id}`) || localStorage.getItem(`budget_lines_${r.name}`);
+      let budgetLines = storedLinesStr ? JSON.parse(storedLinesStr) : r.lines;
+      const bAmount = Number(r.budget_amount ?? r.committed_amount ?? r.amount ?? 0);
+
+      if (!budgetLines || budgetLines.length === 0) {
+        const selectedAnalyticName = analyticsList.find(a => String(a.id) === String(r.analytic_account_id))?.name || 'Furniture';
+        budgetLines = [
+          {
+            analytic_name: selectedAnalyticName,
+            type: 'Expense',
+            committed_amount: bAmount,
+            achieved_amount: 0,
+          },
+        ];
+      }
+
       setForm({
         ...r,
+        budget_amount: bAmount,
         stage: r.stage || 'Draft',
         responsible_name: r.responsible_name || 'Mr. Rahul',
-        start_date: r.start_date || '2026-01-01',
-        end_date: r.end_date || '2026-01-31',
-        lines: r.lines || [
-          {
-            analytic_name: 'Furniture',
-            type: 'Expense',
-            committed_amount: r.amount || 200000,
-            achieved_amount: 10000,
-          },
-        ],
+        start_date: r.period_start || r.start_date || '2026-01-01',
+        end_date: r.period_end || r.end_date || '2026-12-31',
+        period_start: r.period_start || r.start_date || '2026-01-01',
+        period_end: r.period_end || r.end_date || '2026-12-31',
+        lines: budgetLines,
       });
     } else {
       setForm({ ...r });
@@ -398,19 +416,37 @@ function Master({ kind }: { kind: keyof typeof configs }) {
       } else if (kind === 'analytics') {
         payload = { code: form.code || generatedCode, name: cleanName, type: form.type || 'Expense' };
       } else {
-        payload = { name: cleanName, analytic_account_id: Number(form.analytic_account_id || selectedAnalytic?.id),
+        const linesCommittedSum = (form.lines || []).reduce(
+          (sum: number, l: any) => sum + Number(l.committed_amount || 0),
+          0
+        );
+        const totalBudgetAmount = linesCommittedSum > 0
+          ? linesCommittedSum
+          : Number(form.budget_amount ?? form.amount ?? 0);
+
+        payload = {
+          name: cleanName,
+          analytic_account_id: Number(form.analytic_account_id || selectedAnalytic?.id || analyticsList[0]?.id || 1),
           period_start: form.period_start || form.start_date || '2026-01-01',
           period_end: form.period_end || form.end_date || '2026-12-31',
-          budget_amount: Number(form.budget_amount ?? form.amount ?? form.committed_amount ?? form.lines?.[0]?.committed_amount ?? 0),
+          budget_amount: totalBudgetAmount,
           responsible_name: form.responsible_name || null,
           stage: form.stage || 'Draft',
           revised_with: form.revised_with || null,
-          revision_of: form.revision_of || form.revised_from || null };
+          revision_of: form.revision_of || form.revised_from || null,
+        };
       }
 
       const response = form.id && c.api.update
         ? await c.api.update(form.id, payload)
         : await c.api.create(payload);
+
+      const saved = response.data;
+      if (saved && form.lines && form.lines.length > 0) {
+        if (saved.id) localStorage.setItem(`budget_lines_${saved.id}`, JSON.stringify(form.lines));
+        if (saved.name) localStorage.setItem(`budget_lines_${saved.name}`, JSON.stringify(form.lines));
+      }
+
       await load();
       setForm(null);
     } catch (e) {
@@ -420,12 +456,20 @@ function Master({ kind }: { kind: keyof typeof configs }) {
 
   const persistBudgetStage = async (stage: string) => {
     setError('');
+    const linesCommittedSum = (form.lines || []).reduce(
+      (sum: number, l: any) => sum + Number(l.committed_amount || 0),
+      0
+    );
+    const totalBudgetAmount = linesCommittedSum > 0
+      ? linesCommittedSum
+      : Number(form.budget_amount ?? form.amount ?? 0);
+
     const payload = {
       name: form.name || 'New Budget',
-      analytic_account_id: Number(form.analytic_account_id || analyticsList[0]?.id),
+      analytic_account_id: Number(form.analytic_account_id || analyticsList[0]?.id || 1),
       period_start: form.period_start || form.start_date || '2026-01-01',
       period_end: form.period_end || form.end_date || '2026-12-31',
-      budget_amount: Number(form.budget_amount ?? form.amount ?? form.lines?.[0]?.committed_amount ?? 0),
+      budget_amount: totalBudgetAmount,
       responsible_name: form.responsible_name || null,
       stage,
       revised_with: form.revised_with || null,
@@ -436,6 +480,10 @@ function Master({ kind }: { kind: keyof typeof configs }) {
         ? await c.api.update(form.id, payload)
         : await c.api.create(payload);
       const saved = response.data;
+      if (saved && form.lines && form.lines.length > 0) {
+        if (saved.id) localStorage.setItem(`budget_lines_${saved.id}`, JSON.stringify(form.lines));
+        if (saved.name) localStorage.setItem(`budget_lines_${saved.name}`, JSON.stringify(form.lines));
+      }
       await load();
       setForm({ ...form, ...saved, start_date: saved.period_start, end_date: saved.period_end, stage: saved.stage });
     } catch (value) {
@@ -466,7 +514,25 @@ function Master({ kind }: { kind: keyof typeof configs }) {
             else if (kind === 'accounts') setForm({ account_type: 'Asset' });
             else if (kind === 'journals') setForm({ journal_type: 'Sales' });
             else if (kind === 'analytics') setForm({ type: 'Expense' });
-            else if (kind === 'budgets') setForm({ stage: 'Draft', responsible_name: 'Mr. Rahul', start_date: '2026-01-01', end_date: '2026-01-31', lines: [{ analytic_name: 'Furniture', type: 'Expense', committed_amount: 200000, achieved_amount: 10000 }] });
+            else if (kind === 'budgets') setForm({
+              name: '',
+              analytic_account_id: analyticsList[0]?.id || 1,
+              period_start: '2026-01-01',
+              period_end: '2026-12-31',
+              start_date: '2026-01-01',
+              end_date: '2026-12-31',
+              budget_amount: 100000,
+              stage: 'Draft',
+              responsible_name: contactsList[0]?.name || 'Mr. Rahul',
+              lines: [
+                {
+                  analytic_name: analyticsList[0]?.name || 'Furniture',
+                  type: 'Expense',
+                  committed_amount: 100000,
+                  achieved_amount: 0,
+                },
+              ],
+            });
             else setForm({});
           }}>
             <span>＋</span> New
@@ -1276,17 +1342,20 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                     variant="secondary"
                     onClick={() => {
                       const curLines = form.lines || [];
+                      const newLines = [
+                        ...curLines,
+                        {
+                          analytic_name: analyticsList[0]?.name || 'Furniture',
+                          type: 'Expense',
+                          committed_amount: 50000,
+                          achieved_amount: 0,
+                        },
+                      ];
+                      const newSum = newLines.reduce((acc: number, l: any) => acc + Number(l.committed_amount || 0), 0);
                       setForm({
                         ...form,
-                        lines: [
-                          ...curLines,
-                          {
-                            analytic_name: analyticsList[0]?.name || 'Furniture',
-                            type: 'Expense',
-                            committed_amount: 200000,
-                            achieved_amount: 10000,
-                          },
-                        ],
+                        lines: newLines,
+                        budget_amount: newSum,
                       });
                     }}
                   >
@@ -1309,10 +1378,10 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                     <tbody>
                       {(form.lines || [
                         {
-                          analytic_name: 'Furniture',
+                          analytic_name: analyticsList[0]?.name || 'Furniture',
                           type: 'Expense',
-                          committed_amount: 200000,
-                          achieved_amount: 10000,
+                          committed_amount: Number(form.budget_amount || 100000),
+                          achieved_amount: 0,
                         },
                       ]).map((l: any, i: number) => {
                         const committed = Number(l.committed_amount || 0);
@@ -1363,11 +1432,17 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                               <input
                                 type="number"
                                 step="0.01"
-                                value={l.committed_amount || ''}
+                                value={l.committed_amount ?? ''}
                                 onChange={(e) => {
+                                  const val = e.target.value;
                                   const newLines = [...(form.lines || [])];
-                                  newLines[i] = { ...newLines[i], committed_amount: e.target.value };
-                                  setForm({ ...form, lines: newLines });
+                                  newLines[i] = { ...newLines[i], committed_amount: val };
+                                  const newSum = newLines.reduce((acc: number, l: any) => acc + Number(l.committed_amount || 0), 0);
+                                  setForm({
+                                    ...form,
+                                    lines: newLines,
+                                    budget_amount: newSum,
+                                  });
                                 }}
                               />
                             </td>
@@ -1381,7 +1456,12 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                                   className="text-btn"
                                   onClick={() => {
                                     const newLines = form.lines.filter((_: any, idx: number) => idx !== i);
-                                    setForm({ ...form, lines: newLines });
+                                    const newSum = newLines.reduce((acc: number, l: any) => acc + Number(l.committed_amount || 0), 0);
+                                    setForm({
+                                      ...form,
+                                      lines: newLines,
+                                      budget_amount: newSum,
+                                    });
                                   }}
                                 >
                                   ✕
