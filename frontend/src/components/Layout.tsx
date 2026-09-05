@@ -32,7 +32,6 @@ const groups: NavGroup[] = [
   ['Masters', [
     ['Contacts', '/masters/contacts', Users],
     ['Products', '/masters/products', Package],
-    ['Taxes', '/masters/taxes', WalletCards],
     ['Chart of Accounts', '/masters/accounts', Landmark],
     ['Journals', '/masters/journals', NotebookTabs],
     ['Analytic Accounts', '/masters/analytics', Target],
