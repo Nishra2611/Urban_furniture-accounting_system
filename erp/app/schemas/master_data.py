@@ -1,6 +1,6 @@
 from decimal import Decimal
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from app.models.enums import PartyType, AccountType
 
@@ -9,7 +9,7 @@ class ContactCreate(BaseModel):
     code: str
     name: str
     party_type: PartyType
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
     tax_id: Optional[str] = None

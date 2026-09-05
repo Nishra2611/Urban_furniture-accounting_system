@@ -1,12 +1,12 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 
 from app.models.enums import UserRole
 
 
 class SignupRequest(BaseModel):
     login_id: str
-    email: EmailStr
+    email: str
     password: str
     re_password: str
 
@@ -38,7 +38,7 @@ class TokenResponse(BaseModel):
 class CreateUserRequest(BaseModel):
     name: str
     login_id: str
-    email: EmailStr
+    email: str
     role: UserRole
     password: str
     re_password: str
@@ -56,7 +56,7 @@ class UserOut(BaseModel):
     id: int
     name: Optional[str]
     login_id: str
-    email: EmailStr
+    email: str
     role: UserRole
     is_active: bool
 
@@ -65,10 +65,11 @@ class UserOut(BaseModel):
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
+    email: str
 
 
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
     re_password: str
+
