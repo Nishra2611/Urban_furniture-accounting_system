@@ -150,7 +150,7 @@ const configs: any = {
     title: 'Budgets',
     sub: 'Plan amounts against an account and reporting period',
     api: masters.budgets,
-    columns: ['Budget', 'Account', 'Period', 'Amount'],
+    columns: ['Budget', 'Start Date', 'End Date', 'Status', 'Progress'],
     fields: [
       ['name', 'Budget Name', 'text', true],
       ['analytic_account_id', 'Analytic Account', 'selectAnalytic', true],
@@ -219,6 +219,16 @@ function Master({ kind }: { kind: keyof typeof configs }) {
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number | string>>(new Set());
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    isDanger?: boolean;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountsList, setAccountsList] = useState<any[]>(DEFAULT_ACCOUNTS);
   const [contactsList, setContactsList] = useState<any[]>([]);
@@ -230,12 +240,25 @@ function Master({ kind }: { kind: keyof typeof configs }) {
   const [isAddingCat, setIsAddingCat] = useState(false);
   const [taxes, setTaxes] = useState<Tax[]>([]);
 
+  const isProtectedRecord = (r: any) => {
+    if (!r) return false;
+    if (kind === 'accounts') {
+      const sysCodes = ['1000', '1200', '2000', '3000', '4000', '5000'];
+      return sysCodes.includes(String(r.code));
+    }
+    if (kind === 'journals') {
+      const sysCodes = ['SALES', 'PURCHASE', 'CASH', 'BANK'];
+      return sysCodes.includes(String(r.code).toUpperCase());
+    }
+    return false;
+  };
+
   const load = async () => {
     setLoading(true);
     try {
-      const r = await c.api.list();
+      const r = await c.api.list(showArchived);
       let data = r.data || [];
-      if (data.length === 0) {
+      if (data.length === 0 && !showArchived) {
         if (kind === 'accounts') data = DEFAULT_ACCOUNTS;
         if (kind === 'journals') data = DEFAULT_JOURNALS;
         if (kind === 'analytics') data = DEFAULT_ANALYTICS;
@@ -255,32 +278,157 @@ function Master({ kind }: { kind: keyof typeof configs }) {
   };
 
   useEffect(() => {
+    setSelectedIds(new Set());
     load();
-    masters.accounts.list().then((r) => {
+    masters.accounts.list(true).then((r) => {
       if (r.data && r.data.length > 0) {
         setAccounts(r.data);
         setAccountsList(r.data);
       }
     }).catch(() => {});
-    masters.contacts.list().then((r) => {
+    masters.contacts.list(true).then((r) => {
       if (r.data) setContactsList(r.data);
     }).catch(() => {});
-    masters.analytics.list().then((r) => {
+    masters.analytics.list(true).then((r) => {
       if (r.data && r.data.length > 0) {
         setAnalytics(r.data);
         setAnalyticsList(r.data);
       }
     }).catch(() => {});
-    masters.budgets.list().then((r) => {
+    masters.budgets.list(true).then((r) => {
       if (r.data && r.data.length > 0) setAllBudgetsList(r.data);
     }).catch(() => {});
-    if (kind === 'products') masters.taxes.list().then((r) => setTaxes(r.data));
-  }, [kind]);
+    if (kind === 'products') masters.taxes.list(true).then((r) => setTaxes(r.data));
+  }, [kind, showArchived]);
 
   const filtered = useMemo(
     () => rows.filter((x) => JSON.stringify(x).toLowerCase().includes(q.toLowerCase())),
     [rows, q]
   );
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      const all = new Set(filtered.map((r) => r.id));
+      setSelectedIds(all);
+    }
+  };
+
+  const toggleSelectRow = (id: number | string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
+
+  const promptArchive = (r: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmModal({
+      title: `Archive ${r.name || r.code}?`,
+      message: `Are you sure you want to archive "${r.name || r.code}"? It will be removed from active lists but historical data is preserved.`,
+      confirmText: 'Archive',
+      isDanger: false,
+      onConfirm: async () => {
+        try {
+          if (c.api?.deactivate) await c.api.deactivate(r.id);
+          await load();
+        } catch (errVal) {
+          setError(err(errVal));
+        }
+      },
+    });
+  };
+
+  const promptActivate = (r: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmModal({
+      title: `Restore ${r.name || r.code}?`,
+      message: `Restore "${r.name || r.code}" back to active status?`,
+      confirmText: 'Restore',
+      isDanger: false,
+      onConfirm: async () => {
+        try {
+          if (c.api?.activate) await c.api.activate(r.id);
+          await load();
+        } catch (errVal) {
+          setError(err(errVal));
+        }
+      },
+    });
+  };
+
+  const promptDelete = (r: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmModal({
+      title: `Permanently Delete ${r.name || r.code}?`,
+      message: `Are you sure you want to permanently delete "${r.name || r.code}" from the database? This cannot be undone.`,
+      confirmText: 'Delete Permanently',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          if (c.api?.delete) await c.api.delete(r.id);
+          setSelectedIds((prev) => {
+            const n = new Set(prev);
+            n.delete(r.id);
+            return n;
+          });
+          await load();
+        } catch (errVal) {
+          setError(err(errVal));
+        }
+      },
+    });
+  };
+
+  const promptBulkArchive = () => {
+    const validIds = Array.from(selectedIds).filter((id) => {
+      const r = rows.find((item) => String(item.id) === String(id));
+      return !isProtectedRecord(r);
+    });
+    if (validIds.length === 0) return;
+    setConfirmModal({
+      title: `Archive ${validIds.length} Selected Record(s)?`,
+      message: `Are you sure you want to archive ${validIds.length} selected item(s)?`,
+      confirmText: 'Archive Selected',
+      isDanger: false,
+      onConfirm: async () => {
+        try {
+          if (c.api?.bulkArchive) await c.api.bulkArchive(validIds);
+          setSelectedIds(new Set());
+          await load();
+        } catch (errVal) {
+          setError(err(errVal));
+        }
+      },
+    });
+  };
+
+  const promptBulkDelete = () => {
+    const validIds = Array.from(selectedIds).filter((id) => {
+      const r = rows.find((item) => String(item.id) === String(id));
+      return !isProtectedRecord(r);
+    });
+    if (validIds.length === 0) return;
+    setConfirmModal({
+      title: `Permanently Delete ${validIds.length} Selected Record(s)?`,
+      message: `Are you sure you want to PERMANENTLY DELETE ${validIds.length} selected record(s) from the database? Linked records may cause constraint errors.`,
+      confirmText: 'Delete Permanently',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          if (c.api?.bulkDelete) await c.api.bulkDelete(validIds);
+          setSelectedIds(new Set());
+          await load();
+        } catch (errVal) {
+          setError(err(errVal));
+        }
+      },
+    });
+  };
 
   const openFormForRecord = (r: any) => {
     if (kind === 'contacts') {
@@ -491,17 +639,6 @@ function Master({ kind }: { kind: keyof typeof configs }) {
     }
   };
 
-  const deactivate = async (id: string) => {
-    if (!confirm('Archive this record?')) return;
-    try {
-      if (c.api?.deactivate) await c.api.deactivate(id);
-      load();
-    } catch (e) {
-      setError(err(e));
-    }
-  };
-
-
   return (
     <>
       <PageHeader
@@ -544,25 +681,55 @@ function Master({ kind }: { kind: keyof typeof configs }) {
         onSearch={setQ}
         refresh={load}
         action={
-          <div className="view-toggle">
-            <button
-              type="button"
-              className={view === 'list' ? 'selected' : ''}
-              onClick={() => setView('list')}
-            >
-              List
-            </button>
-            <button
-              type="button"
-              className={view === 'kanban' ? 'selected' : ''}
-              onClick={() => setView('kanban')}
-            >
-              Kanban
-            </button>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div className="archive-filter-toggle">
+              <button type="button" className={!showArchived ? 'active' : ''} onClick={() => setShowArchived(false)}>
+                Active
+              </button>
+              <button type="button" className={showArchived ? 'active' : ''} onClick={() => setShowArchived(true)}>
+                Archived
+              </button>
+            </div>
+            <div className="view-toggle">
+              <button
+                type="button"
+                className={view === 'list' ? 'selected' : ''}
+                onClick={() => setView('list')}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                className={view === 'kanban' ? 'selected' : ''}
+                onClick={() => setView('kanban')}
+              >
+                Kanban
+              </button>
+            </div>
           </div>
         }
       />
       {error && !form && <div className="error banner">{error}</div>}
+
+      {selectedIds.size > 0 && (
+        <div className="bulk-action-bar">
+          <span>{selectedIds.size} record(s) selected</span>
+          {c.api?.bulkArchive && (
+            <Button variant="secondary" onClick={promptBulkArchive}>
+              Archive Selected
+            </Button>
+          )}
+          {c.api?.bulkDelete && (
+            <Button variant="danger" onClick={promptBulkDelete}>
+              Delete Selected
+            </Button>
+          )}
+          <Button variant="ghost" onClick={() => setSelectedIds(new Set())}>
+            Deselect All
+          </Button>
+        </div>
+      )}
+
       <div className="table-card">
         {loading ? (
           <div className="loading">Loading records...</div>
@@ -574,6 +741,15 @@ function Master({ kind }: { kind: keyof typeof configs }) {
               if (kind === 'budgets') {
                 return (
                   <div className="budget-kanban-card" key={r.id || r.name} onClick={() => openFormForRecord(r)}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(r.id)}
+                        onChange={(e) => toggleSelectRow(r.id, e as any)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <Status value={r.stage || 'Draft'} />
+                    </div>
                     <div className="budget-kanban-title">{r.name}</div>
                     <div className="budget-kanban-row">
                       <span className="budget-kanban-label">Start Date</span>
@@ -592,6 +768,12 @@ function Master({ kind }: { kind: keyof typeof configs }) {
               return (
                 <div className="kanban-card" key={r.id || r.name} onClick={() => openFormForRecord(r)}>
                   <div className="kanban-top">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(r.id)}
+                      onChange={(e) => toggleSelectRow(r.id, e as any)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                     {avatarImg ? (
                       <img src={avatarImg} alt={r.name} className="kanban-avatar-img" />
                     ) : (
@@ -618,13 +800,27 @@ function Master({ kind }: { kind: keyof typeof configs }) {
           <table>
             <thead>
               <tr>
+                <th style={{ width: 40, textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 {c.columns.map((x: string) => <th key={x}>{x}</th>)}
-                <th></th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((r: any, idx: number) => (
                 <tr key={r.id || idx} onClick={() => openFormForRecord(r)}>
+                  <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(r.id)}
+                      onChange={(e) => toggleSelectRow(r.id, e as any)}
+                    />
+                  </td>
                   {kind === 'contacts' && (
                     <>
                       <td><b>{r.name}</b></td>
@@ -637,23 +833,34 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                   {kind === 'products' && (
                     <>
                       <td><b>{r.name}</b></td>
-                      <td>{r.product_type || 'Goods'}</td>
-                      <td>{r.category || 'Furniture'}</td>
+                      <td>{r.code || '—'}</td>
                       <td>{money(r.sales_price ?? r.unit_price ?? 0)}</td>
                       <td>{money(r.cost_price ?? r.purchase_price ?? 0)}</td>
+                      <td><Status value={r.is_active === false ? 'Archived' : 'Active'} /></td>
+                    </>
+                  )}
+                  {kind === 'taxes' && (
+                    <>
+                      <td><b>{r.name}</b></td>
+                      <td>{r.rate}%</td>
+                      <td>{r.tax_type}</td>
+                      <td><Status value={r.is_active === false ? 'Archived' : 'Active'} /></td>
                     </>
                   )}
                   {kind === 'accounts' && (
                     <>
+                      <td>{r.code}</td>
                       <td><b>{r.name}</b></td>
                       <td>{r.account_type}</td>
+                      <td><Status value={r.is_active === false ? 'Archived' : 'Active'} /></td>
                     </>
                   )}
                   {kind === 'journals' && (
                     <>
+                      <td>{r.code}</td>
                       <td><b>{r.name}</b></td>
                       <td>{r.journal_type}</td>
-                      <td>{r.default_account_name || (accounts.find(a => String(a.id) === String(r.default_account_id))?.name) || '—'}</td>
+                      <td><Status value={r.is_active === false ? 'Archived' : 'Active'} /></td>
                     </>
                   )}
                   {kind === 'analytics' && (
@@ -674,17 +881,39 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                       </td>
                     </>
                   )}
-                  <td>
-                    {isAdmin && c.api?.deactivate && (
-                      <button
-                        className="text-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deactivate(r.id);
-                        }}
-                      >
-                        Archive
-                      </button>
+                  <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                    {isProtectedRecord(r) ? (
+                      <span className="protected-badge">System Default</span>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        {(r.is_active === false || r.stage === 'Cancelled') ? (
+                          <>
+                            {c.api?.activate && (
+                              <button className="text-btn" onClick={(e) => promptActivate(r, e)}>
+                                Restore
+                              </button>
+                            )}
+                            {c.api?.delete && (
+                              <button className="text-btn danger" style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }} onClick={(e) => promptDelete(r, e)}>
+                                Delete
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {c.api?.deactivate && (
+                              <button className="text-btn" onClick={(e) => promptArchive(r, e)}>
+                                Archive
+                              </button>
+                            )}
+                            {c.api?.delete && (
+                              <button className="text-btn danger" style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }} onClick={(e) => promptDelete(r, e)}>
+                                Delete
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -779,11 +1008,6 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                     >
                       Confirm
                     </Button>
-                    {kind === 'accounts' && (
-                      <Button type="button" variant="secondary" onClick={() => setForm(null)}>
-                        Archived
-                      </Button>
-                    )}
                   </>
                 )}
               </div>
@@ -804,7 +1028,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
 
             {kind === 'contacts' ? (
               <form id="master-modal-form" onSubmit={save}>
-                <h2 className="contact-modal-title">Contact master Form View</h2>
+                <h2 className="contact-modal-title">Contact Master Form View</h2>
                 {error && <div className="error">{error}</div>}
                 <div style={{ marginBottom: 14 }}>
                   <Field label="Contact Name" required>
@@ -1497,6 +1721,29 @@ function Master({ kind }: { kind: keyof typeof configs }) {
           </div>
         </div>
       )}
+
+      {confirmModal && (
+        <div className="modal-overlay" onClick={() => setConfirmModal(null)}>
+          <div className="confirmation-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{confirmModal.title}</h3>
+            <p>{confirmModal.message}</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+              <Button variant="secondary" onClick={() => setConfirmModal(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant={confirmModal.isDanger ? 'danger' : 'primary'}
+                onClick={async () => {
+                  await confirmModal.onConfirm();
+                  setConfirmModal(null);
+                }}
+              >
+                {confirmModal.confirmText}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -1508,4 +1755,3 @@ export const Accounts = () => <Master kind="accounts" />;
 export const Journals = () => <Master kind="journals" />;
 export const Analytics = () => <Master kind="analytics" />;
 export const Budgets = () => <Master kind="budgets" />;
-

@@ -141,3 +141,59 @@ def get_active_or_404(db: Session, model, obj_id: int, allow_inactive: bool = Fa
     if not allow_inactive and hasattr(obj, "is_active") and not obj.is_active:
         raise HTTPException(status_code=422, detail=f"{model.__name__} is inactive and cannot be used")
     return obj
+
+
+def delete_record(db: Session, model, obj_id: int):
+    """Hard-delete record from database."""
+    obj = db.query(model).filter(model.id == obj_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
+    try:
+        db.delete(obj)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=f"Cannot delete {model.__name__}: linked records exist.")
+    return {"detail": f"{model.__name__} deleted successfully"}
+
+
+def activate_record(db: Session, model, obj_id: int):
+    """Restore archived record."""
+    obj = db.query(model).filter(model.id == obj_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
+    if hasattr(obj, "is_active"):
+        obj.is_active = True
+    elif hasattr(obj, "stage"):
+        obj.stage = "Draft"
+    db.commit()
+    return obj
+
+
+def bulk_archive(db: Session, model, obj_ids: list[int]):
+    records = db.query(model).filter(model.id.in_(obj_ids)).all()
+    count = 0
+    for obj in records:
+        if hasattr(obj, "is_active"):
+            obj.is_active = False
+            count += 1
+        elif hasattr(obj, "stage"):
+            obj.stage = "Cancelled"
+            count += 1
+    db.commit()
+    return {"archived_count": count}
+
+
+def bulk_delete(db: Session, model, obj_ids: list[int]):
+    records = db.query(model).filter(model.id.in_(obj_ids)).all()
+    count = 0
+    try:
+        for obj in records:
+            db.delete(obj)
+            count += 1
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=f"Failed to bulk delete {model.__name__}: linked records exist.")
+    return {"deleted_count": count}
+

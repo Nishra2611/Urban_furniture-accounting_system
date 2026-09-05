@@ -156,3 +156,8 @@ class AnalyticBudgetOut(AnalyticBudgetCreate):
 
     class Config:
         from_attributes = True
+
+
+class BulkIDsReq(BaseModel):
+    ids: list[int]
+

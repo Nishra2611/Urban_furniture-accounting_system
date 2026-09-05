@@ -5,3 +5,82 @@ html,body,#root{height:100%;overflow:hidden}
 .main .topbar{position:sticky;top:0}
 .form-modal{width:min(900px,96vw);max-height:90vh;overflow-y:auto;padding:24px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 50px rgba(35,28,20,.25)}
 .form-modal .page-header{margin-top:0}
+
+.btn.danger {
+  background: #ef4444;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+}
+.btn.danger:hover {
+  background: #dc2626;
+}
+
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.archive-filter-toggle {
+  display: flex;
+  background: var(--surface, #f4f0ea);
+  border: 1px solid var(--line, #e2dcd5);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+.archive-filter-toggle button {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted, #78716c);
+}
+.archive-filter-toggle button.active {
+  background: var(--paper, #ffffff);
+  color: var(--text, #1c1917);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.confirmation-modal {
+  max-width: 440px;
+  width: 90vw;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+.confirmation-modal h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1c1917;
+}
+.confirmation-modal p {
+  margin: 0;
+  font-size: 14px;
+  color: #57534e;
+  line-height: 1.5;
+}
+
+.protected-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+

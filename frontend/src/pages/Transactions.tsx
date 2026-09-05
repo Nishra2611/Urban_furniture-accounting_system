@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { masters, tx, accounting, err } from '../api';
 import { Button, Empty, Field, PageHeader, Status, Toolbar, money } from '../components/UI';
-import { Plus, Eye, Settings, FileText, BarChart3, ArrowRight } from 'lucide-react';
+import { Plus, Eye, Settings, FileText, BarChart3, Trash2 } from 'lucide-react';
 import type { Contact, Product, Tax, Document, Payment, Analytic, Account } from '../types/api';
 
 type Kind = 'salesOrders' | 'purchaseOrders' | 'invoices' | 'bills';
@@ -89,11 +89,11 @@ function useMasters() {
 
   useEffect(() => {
     Promise.all([
-      masters.contacts.list().catch(() => ({ data: [] })),
-      masters.products.list().catch(() => ({ data: [] })),
-      masters.taxes.list().catch(() => ({ data: [] })),
-      masters.analytics.list().catch(() => ({ data: [] })),
-      masters.accounts.list().catch(() => ({ data: [] })),
+      masters.contacts.list(true).catch(() => ({ data: [] })),
+      masters.products.list(true).catch(() => ({ data: [] })),
+      masters.taxes.list(true).catch(() => ({ data: [] })),
+      masters.analytics.list(true).catch(() => ({ data: [] })),
+      masters.accounts.list(true).catch(() => ({ data: [] })),
     ]).then(([a, b, c, d, e]) => {
       setContacts(a.data || []);
       setProducts(b.data || []);
@@ -413,7 +413,6 @@ function DocModal({
   };
 
   const handleConfirm = () => {
-    // Budget check logic
     if (linesTotal > 150000) {
       setBudgetExceededWarning(true);
     } else {
@@ -432,7 +431,6 @@ function DocModal({
 
   const handleCreateBillOrInvoice = () => {
     if (kind === 'purchaseOrders') {
-      // Create Vendor Bill from PO
       const newBill = {
         id: 'bill-' + Date.now(),
         number: `Bill/2026/${String((allDocs.bills || []).length + 1).padStart(4, '0')}`,
@@ -455,7 +453,6 @@ function DocModal({
       onSaveDoc(newBill);
       onOpenDoc(newBill, 'bills');
     } else if (kind === 'salesOrders') {
-      // Create Customer Invoice from SO
       const newInv = {
         id: 'inv-' + Date.now(),
         number: `INV/2026/${String((allDocs.invoices || []).length + 1).padStart(4, '0')}`,
@@ -808,7 +805,7 @@ function DocModal({
               </tr>
             </thead>
             <tbody>
-                  {(form.lines?.length ? form.lines : [{ ...defaultLine }]).map((l: any, i: number) => (
+              {(form.lines?.length ? form.lines : [{ ...defaultLine }]).map((l: any, i: number) => (
                 <tr key={i}>
                   <td><b>{i + 1}</b></td>
                   <td>
@@ -918,14 +915,12 @@ function DocModal({
           )}
         </div>
 
-        {/* Blocking Warning for PO Confirmation if budget exceeded */}
         {budgetExceededWarning && (
           <div className="blocking-warning" style={{ marginTop: 16 }}>
             ⚠️ <b>Exceeds Approved Budget:</b> The entered amount is higher than the remaining budget amount for this budget line. Consider adjusting the value or revise the budget.
           </div>
         )}
 
-        {/* Status badges helper note */}
         {(isBill || isInvoice) && (
           <div style={{ marginTop: 14, fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', background: '#faf7f2', padding: '10px 14px', borderRadius: 8 }}>
             As soon as the {isBill ? 'vendor bill' : 'Customer Invoice'} is confirmed a journal entry would be created that would become visible in the Journal Entries section. For {isBill ? 'Vendor bill always Purchase' : 'Customer Invoice always Sales'} chart of account would be set by default. The Journal Entry should always be balanced. That is the debit and credit totals need to match.
@@ -933,7 +928,6 @@ function DocModal({
         )}
       </div>
 
-      {/* Payment Modal */}
       {paymentModal && (
         <PaymentModal
           doc={{ ...form, amount_due: amountDue, total: linesTotal }}
@@ -949,10 +943,10 @@ function DocModal({
 // Documents List & Handler
 export function Documents({ kind }: { kind: Kind }) {
   const cfg: any = {
-    salesOrders: { title: 'Sales Orders', sub: 'Customer orders awaiting fulfillment and invoicing', create: 'New Sales Order' },
-    purchaseOrders: { title: 'Purchase Orders', sub: 'Vendor orders and procurement commitments', create: 'New Purchase Order' },
-    invoices: { title: 'Customer Invoices', sub: 'Receivables generated from sales activity', create: 'New Customer Invoice' },
-    bills: { title: 'Vendor Bills', sub: 'Payables and supplier invoices', create: 'New Vendor Bill' },
+    salesOrders: { title: 'Sales Orders', sub: 'Customer orders awaiting fulfillment and invoicing', create: 'New Sales Order', api: tx.salesOrders },
+    purchaseOrders: { title: 'Purchase Orders', sub: 'Vendor orders and procurement commitments', create: 'New Purchase Order', api: tx.purchaseOrders },
+    invoices: { title: 'Customer Invoices', sub: 'Receivables generated from sales activity', create: 'New Customer Invoice', api: tx.invoices },
+    bills: { title: 'Vendor Bills', sub: 'Payables and supplier invoices', create: 'New Vendor Bill', api: tx.bills },
   }[kind];
 
   const [allDocs, setAllDocs] = useState<Record<Kind, any[]>>(DEFAULT_DOCUMENTS);
@@ -960,11 +954,49 @@ export function Documents({ kind }: { kind: Kind }) {
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const [modalKind, setModalKind] = useState<Kind>(kind);
   const [showModal, setShowModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number | string>>(new Set());
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    isDanger?: boolean;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+    if (cfg.api?.list) {
+      cfg.api.list().then((r: any) => {
+        if (r.data && r.data.length > 0) {
+          setAllDocs((prev) => ({ ...prev, [kind]: r.data }));
+        }
+      }).catch(() => {});
+    }
+  }, [kind]);
 
   const list = allDocs[kind] || [];
   const filtered = useMemo(() => {
     return list.filter((r) => JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));
   }, [list, q]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      const all = new Set(filtered.map((r) => r.id || r.number));
+      setSelectedIds(all);
+    }
+  };
+
+  const toggleSelectRow = (id: number | string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
 
   const handleOpenNew = () => {
     setSelectedDoc(null);
@@ -976,6 +1008,59 @@ export function Documents({ kind }: { kind: Kind }) {
     setSelectedDoc(r);
     setModalKind(kind);
     setShowModal(true);
+  };
+
+  const promptDeleteDoc = (r: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmModal({
+      title: `Permanently Delete ${r.number || 'Document'}?`,
+      message: `Are you sure you want to permanently delete document "${r.number}"? This will remove it from the system.`,
+      confirmText: 'Delete Document',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          if (cfg.api?.delete && r.id) {
+            await cfg.api.delete(r.id);
+          }
+          setAllDocs((prev) => ({
+            ...prev,
+            [kind]: (prev[kind] || []).filter((item) => (item.id || item.number) !== (r.id || r.number)),
+          }));
+          setSelectedIds((prev) => {
+            const n = new Set(prev);
+            n.delete(r.id || r.number);
+            return n;
+          });
+        } catch (errVal) {
+          alert(err(errVal));
+        }
+      },
+    });
+  };
+
+  const promptBulkDelete = () => {
+    const ids = Array.from(selectedIds);
+    setConfirmModal({
+      title: `Delete ${ids.length} Selected Document(s)?`,
+      message: `Are you sure you want to permanently delete these ${ids.length} documents?`,
+      confirmText: 'Delete Selected',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          const numIds = ids.filter((x) => typeof x === 'number');
+          if (cfg.api?.bulkDelete && numIds.length > 0) {
+            await cfg.api.bulkDelete(numIds);
+          }
+          setAllDocs((prev) => ({
+            ...prev,
+            [kind]: (prev[kind] || []).filter((item) => !ids.includes(item.id || item.number)),
+          }));
+          setSelectedIds(new Set());
+        } catch (errVal) {
+          alert(err(errVal));
+        }
+      },
+    });
   };
 
   const handleSaveDoc = (savedDoc: any) => {
@@ -1012,6 +1097,18 @@ export function Documents({ kind }: { kind: Kind }) {
 
       <Toolbar search={q} onSearch={setQ} />
 
+      {selectedIds.size > 0 && (
+        <div className="bulk-action-bar">
+          <span>{selectedIds.size} document(s) selected</span>
+          <Button variant="danger" onClick={promptBulkDelete}>
+            Delete Selected
+          </Button>
+          <Button variant="ghost" onClick={() => setSelectedIds(new Set())}>
+            Deselect All
+          </Button>
+        </div>
+      )}
+
       <div className="table-card">
         {filtered.length === 0 ? (
           <Empty />
@@ -1019,41 +1116,67 @@ export function Documents({ kind }: { kind: Kind }) {
           <table>
             <thead>
               <tr>
+                <th style={{ width: 40, textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>Number</th>
                 <th>Party</th>
                 <th>Date</th>
                 <th>Total</th>
                 <th>Paid</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r: any) => (
-                <tr key={r.id || r.number} onClick={() => handleOpenRow(r)}>
-                  <td><b>{r.number}</b></td>
-                  <td>{r.customer_name || r.vendor_name || r.partner_name || '—'}</td>
-                  <td>{String(r.invoice_date || r.bill_date || r.order_date || r.date || '').slice(0, 10)}</td>
-                  <td>{money(r.total)}</td>
-                  <td>{money(r.amount_paid || 0)}</td>
-                  <td><Status value={r.status || 'draft'} /></td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        type="button"
-                        className="icon-btn small"
-                        title="View Form Popup"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenRow(r);
-                        }}
-                      >
-                        <Eye size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((r: any) => {
+                const rowId = r.id || r.number;
+                return (
+                  <tr key={rowId} onClick={() => handleOpenRow(r)}>
+                    <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(rowId)}
+                        onChange={(e) => toggleSelectRow(rowId, e as any)}
+                      />
+                    </td>
+                    <td><b>{r.number}</b></td>
+                    <td>{r.customer_name || r.vendor_name || r.partner_name || '—'}</td>
+                    <td>{String(r.invoice_date || r.bill_date || r.order_date || r.date || '').slice(0, 10)}</td>
+                    <td>{money(r.total)}</td>
+                    <td>{money(r.amount_paid || 0)}</td>
+                    <td><Status value={r.status || 'draft'} /></td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div className="row-actions" style={{ justifyContent: 'flex-end', display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="icon-btn small"
+                          title="View Form Popup"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenRow(r);
+                          }}
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn small danger"
+                          title="Delete Document"
+                          style={{ color: '#ef4444' }}
+                          onClick={(e) => promptDeleteDoc(r, e)}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -1069,6 +1192,29 @@ export function Documents({ kind }: { kind: Kind }) {
           onOpenDoc={handleOpenLinkedDoc}
         />
       )}
+
+      {confirmModal && (
+        <div className="modal-overlay" onClick={() => setConfirmModal(null)}>
+          <div className="confirmation-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{confirmModal.title}</h3>
+            <p>{confirmModal.message}</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+              <Button variant="secondary" onClick={() => setConfirmModal(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant={confirmModal.isDanger ? 'danger' : 'primary'}
+                onClick={async () => {
+                  await confirmModal.onConfirm();
+                  setConfirmModal(null);
+                }}
+              >
+                {confirmModal.confirmText}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -1079,16 +1225,95 @@ export function Payments({ type }: { type: 'customer' | 'vendor' }) {
   const [rows, setRows] = useState<Payment[]>([]);
   const [q, setQ] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number | string>>(new Set());
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    isDanger?: boolean;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+
+  const loadPayments = () => {
+    tx.payments.list().then((r) => setRows(r.data || [])).catch(() => {});
+  };
 
   useEffect(() => {
-    tx.payments.list().then((r) => setRows(r.data || [])).catch(() => {});
-  }, []);
+    setSelectedIds(new Set());
+    loadPayments();
+  }, [type]);
 
   const filtered = rows.filter(
     (r) =>
       r.payment_type === (type === 'customer' ? 'receipt' : 'payment') &&
       JSON.stringify(r).toLowerCase().includes(q.toLowerCase())
   );
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      const all = new Set(filtered.map((r) => r.id));
+      setSelectedIds(all);
+    }
+  };
+
+  const toggleSelectRow = (id: number | string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
+
+  const promptDeletePayment = (p: Payment, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmModal({
+      title: `Delete Payment ${p.number}?`,
+      message: `Are you sure you want to delete payment record ${p.number}?`,
+      confirmText: 'Delete Payment',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          if (p.id) {
+            await tx.payments.delete(p.id, p.payment_type);
+          }
+          setRows((prev) => prev.filter((item) => item.id !== p.id));
+          setSelectedIds((prev) => {
+            const n = new Set(prev);
+            n.delete(p.id);
+            return n;
+          });
+        } catch (errVal) {
+          alert(err(errVal));
+        }
+      },
+    });
+  };
+
+  const promptBulkDeletePayments = () => {
+    const ids = Array.from(selectedIds);
+    setConfirmModal({
+      title: `Delete ${ids.length} Payment(s)?`,
+      message: `Are you sure you want to delete these ${ids.length} payment records?`,
+      confirmText: 'Delete Selected',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          for (const id of ids) {
+            const p = rows.find((item) => item.id === id);
+            if (p) await tx.payments.delete(p.id, p.payment_type).catch(() => {});
+          }
+          setRows((prev) => prev.filter((item) => !ids.includes(item.id)));
+          setSelectedIds(new Set());
+        } catch (errVal) {
+          alert(err(errVal));
+        }
+      },
+    });
+  };
 
   return (
     <>
@@ -1102,6 +1327,19 @@ export function Payments({ type }: { type: 'customer' | 'vendor' }) {
         }
       />
       <Toolbar search={q} onSearch={setQ} />
+
+      {selectedIds.size > 0 && (
+        <div className="bulk-action-bar">
+          <span>{selectedIds.size} payment(s) selected</span>
+          <Button variant="danger" onClick={promptBulkDeletePayments}>
+            Delete Selected
+          </Button>
+          <Button variant="ghost" onClick={() => setSelectedIds(new Set())}>
+            Deselect All
+          </Button>
+        </div>
+      )}
+
       <div className="table-card">
         {filtered.length === 0 ? (
           <Empty text="No payments recorded" />
@@ -1109,23 +1347,49 @@ export function Payments({ type }: { type: 'customer' | 'vendor' }) {
           <table>
             <thead>
               <tr>
+                <th style={{ width: 40, textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>Number</th>
                 <th>Type</th>
                 <th>Partner</th>
                 <th>Date</th>
                 <th>Method</th>
                 <th>Amount</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id}>
+                  <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(p.id)}
+                      onChange={(e) => toggleSelectRow(p.id, e as any)}
+                    />
+                  </td>
                   <td><b>{p.number}</b></td>
                   <td><Status value={p.payment_type} /></td>
                   <td>{contacts.find((c) => String(c.id) === String(p.contact_id))?.name || p.contact_id}</td>
                   <td>{String(p.payment_date).slice(0, 10)}</td>
                   <td>{p.method}</td>
                   <td><b>{money(p.amount)}</b></td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button
+                      type="button"
+                      className="icon-btn small danger"
+                      title="Delete Payment"
+                      style={{ color: '#ef4444' }}
+                      onClick={(e) => promptDeletePayment(p, e)}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1152,6 +1416,29 @@ export function Payments({ type }: { type: 'customer' | 'vendor' }) {
             setShowPaymentModal(false);
           }}
         />
+      )}
+
+      {confirmModal && (
+        <div className="modal-overlay" onClick={() => setConfirmModal(null)}>
+          <div className="confirmation-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{confirmModal.title}</h3>
+            <p>{confirmModal.message}</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+              <Button variant="secondary" onClick={() => setConfirmModal(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant={confirmModal.isDanger ? 'danger' : 'primary'}
+                onClick={async () => {
+                  await confirmModal.onConfirm();
+                  setConfirmModal(null);
+                }}
+              >
+                {confirmModal.confirmText}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

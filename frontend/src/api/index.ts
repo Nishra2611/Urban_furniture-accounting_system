@@ -14,50 +14,72 @@ export const auth = {
 export const users = {
   list: () => api.get('/auth/users'),
   create: (d: any) => api.post('/auth/create-user', d),
+  delete: (id: string | number) => api.delete(`/auth/users/${id}`),
+  bulkDelete: (ids: (string | number)[]) => api.post('/auth/users/bulk-delete', { ids: ids.map(Number) }),
 };
 
 export const masters = {
   contacts: {
-    list: () => api.get('/contacts'),
+    list: (includeArchived?: boolean) => api.get('/contacts', { params: { include_archived: includeArchived } }),
     create: (d: any) => api.post('/contacts', d),
     update: (id: string | number, d: any) => api.put(`/contacts/${id}`, d),
     deactivate: (id: string | number) => api.post(`/contacts/${id}/deactivate`),
+    activate: (id: string | number) => api.post(`/contacts/${id}/activate`),
+    delete: (id: string | number) => api.delete(`/contacts/${id}`),
+    bulkArchive: (ids: (string | number)[]) => api.post('/contacts/bulk-archive', { ids: ids.map(Number) }),
+    bulkDelete: (ids: (string | number)[]) => api.post('/contacts/bulk-delete', { ids: ids.map(Number) }),
   },
   products: {
-    list: () => api.get('/products'),
+    list: (includeArchived?: boolean) => api.get('/products', { params: { include_archived: includeArchived } }),
     create: (d: any) => api.post('/products', d),
     update: (id: string | number, d: any) => api.put(`/products/${id}`, d),
     deactivate: (id: string | number) => api.post(`/products/${id}/deactivate`),
+    activate: (id: string | number) => api.post(`/products/${id}/activate`),
+    delete: (id: string | number) => api.delete(`/products/${id}`),
+    bulkArchive: (ids: (string | number)[]) => api.post('/products/bulk-archive', { ids: ids.map(Number) }),
+    bulkDelete: (ids: (string | number)[]) => api.post('/products/bulk-delete', { ids: ids.map(Number) }),
   },
   taxes: {
-    list: () => api.get('/taxes'),
+    list: (includeArchived?: boolean) => api.get('/taxes', { params: { include_archived: includeArchived } }),
     create: (d: any) => api.post('/taxes', d),
     update: (id: string | number, d: any) => api.put(`/taxes/${id}`, d),
     deactivate: (id: string | number) => api.post(`/taxes/${id}/deactivate`),
+    activate: (id: string | number) => api.post(`/taxes/${id}/activate`),
+    delete: (id: string | number) => api.delete(`/taxes/${id}`),
+    bulkArchive: (ids: (string | number)[]) => api.post('/taxes/bulk-archive', { ids: ids.map(Number) }),
+    bulkDelete: (ids: (string | number)[]) => api.post('/taxes/bulk-delete', { ids: ids.map(Number) }),
   },
   accounts: {
-    list: () => api.get('/chart-of-accounts'),
+    list: (includeArchived?: boolean) => api.get('/chart-of-accounts', { params: { include_archived: includeArchived } }),
     create: (d: any) => api.post('/chart-of-accounts', d),
     update: (id: string | number, d: any) => api.put(`/chart-of-accounts/${id}`, d),
     deactivate: (id: string | number) => api.post(`/chart-of-accounts/${id}/deactivate`),
   },
   journals: {
-    list: () => api.get('/journals'),
+    list: (includeArchived?: boolean) => api.get('/journals', { params: { include_archived: includeArchived } }),
     create: (d: any) => api.post('/journals', d),
     update: (id: string | number, d: any) => api.put(`/journals/${id}`, d),
     deactivate: (id: string | number) => api.post(`/journals/${id}/deactivate`),
   },
   analytics: {
-    list: () => api.get('/analytic-accounts'),
+    list: (includeArchived?: boolean) => api.get('/analytic-accounts', { params: { include_archived: includeArchived } }),
     create: (d: any) => api.post('/analytic-accounts', d),
     update: (id: string | number, d: any) => api.put(`/analytic-accounts/${id}`, d),
     deactivate: (id: string | number) => api.post(`/analytic-accounts/${id}/deactivate`),
+    activate: (id: string | number) => api.post(`/analytic-accounts/${id}/activate`),
+    delete: (id: string | number) => api.delete(`/analytic-accounts/${id}`),
+    bulkArchive: (ids: (string | number)[]) => api.post('/analytic-accounts/bulk-archive', { ids: ids.map(Number) }),
+    bulkDelete: (ids: (string | number)[]) => api.post('/analytic-accounts/bulk-delete', { ids: ids.map(Number) }),
   },
   budgets: {
-    list: () => api.get('/analytic-budgets'),
+    list: (includeArchived?: boolean) => api.get('/analytic-budgets', { params: { include_archived: includeArchived } }),
     create: (d: any) => api.post('/analytic-budgets', d),
     update: (id: string | number, d: any) => api.put(`/analytic-budgets/${id}`, d),
     deactivate: (id: string | number) => api.post(`/analytic-budgets/${id}/deactivate`),
+    activate: (id: string | number) => api.post(`/analytic-budgets/${id}/activate`),
+    delete: (id: string | number) => api.delete(`/analytic-budgets/${id}`),
+    bulkArchive: (ids: (string | number)[]) => api.post('/analytic-budgets/bulk-archive', { ids: ids.map(Number) }),
+    bulkDelete: (ids: (string | number)[]) => api.post('/analytic-budgets/bulk-delete', { ids: ids.map(Number) }),
   },
 };
 
@@ -66,21 +88,29 @@ export const tx = {
     list: () => api.get('/sales/orders'),
     create: (d: any) => api.post('/sales/orders', d),
     confirm: (id: string | number) => api.post(`/sales/orders/${id}/confirm`),
+    delete: (id: string | number) => api.delete(`/sales/orders/${id}`),
+    bulkDelete: (ids: (string | number)[]) => api.post('/sales/orders/bulk-delete', { ids: ids.map(Number) }),
   },
   purchaseOrders: {
     list: () => api.get('/purchase/orders'),
     create: (d: any) => api.post('/purchase/orders', d),
     confirm: (id: string | number) => api.post(`/purchase/orders/${id}/confirm`),
+    delete: (id: string | number) => api.delete(`/purchase/orders/${id}`),
+    bulkDelete: (ids: (string | number)[]) => api.post('/purchase/orders/bulk-delete', { ids: ids.map(Number) }),
   },
   invoices: {
     list: () => api.get('/sales/invoices'),
     create: (d: any) => api.post('/sales/invoices', d),
     post: (id: string | number) => api.post(`/sales/invoices/${id}/confirm`),
+    delete: (id: string | number) => api.delete(`/sales/invoices/${id}`),
+    bulkDelete: (ids: (string | number)[]) => api.post('/sales/invoices/bulk-delete', { ids: ids.map(Number) }),
   },
   bills: {
     list: () => api.get('/purchase/bills'),
     create: (d: any) => api.post('/purchase/bills', d),
     post: (id: string | number) => api.post(`/purchase/bills/${id}/confirm`),
+    delete: (id: string | number) => api.delete(`/purchase/bills/${id}`),
+    bulkDelete: (ids: (string | number)[]) => api.post('/purchase/bills/bulk-delete', { ids: ids.map(Number) }),
   },
   payments: {
     list: async () => {
@@ -106,6 +136,12 @@ export const tx = {
           idempotency_key: d.reference || undefined,
         });
       }
+    },
+    delete: (id: string | number, paymentType?: string) => {
+      if (paymentType === 'receipt') {
+        return api.delete(`/sales/receipts/${id}`);
+      }
+      return api.delete(`/purchase/payments/${id}`);
     },
   },
 };
@@ -136,4 +172,3 @@ export const portal = {
   pay: (d: any) => api.post('/portal/pay', d),
   payBill: (d: any) => api.post('/portal/pay-bill', d),
 };
-

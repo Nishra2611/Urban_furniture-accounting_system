@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import require_accountant_or_admin
+from app.core.deps import require_accountant_or_admin, require_admin
 from app.models.user import User
 from app.schemas.transactions import PurchaseOrderCreate, PurchaseBillCreate, VendorPaymentCreate
+from app.schemas.master_data import BulkIDsReq
 from app.services import purchase_service as svc
+from app.services import master_data_service as master_svc
 
 from app.models.purchase import PurchaseOrder, PurchaseBill, VendorPayment
 
@@ -43,6 +45,18 @@ def confirm_order(order_id: int, db: Session = Depends(get_db),
     return {"id": order.id, "status": order.status.value}
 
 
+@router.delete("/orders/{order_id}")
+def delete_order(order_id: int, db: Session = Depends(get_db),
+                 _: User = Depends(require_admin)):
+    return master_svc.delete_record(db, PurchaseOrder, order_id)
+
+
+@router.post("/orders/bulk-delete")
+def bulk_delete_orders(payload: BulkIDsReq, db: Session = Depends(get_db),
+                        _: User = Depends(require_admin)):
+    return master_svc.bulk_delete(db, PurchaseOrder, payload.ids)
+
+
 @router.get("/bills")
 def list_bills(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     bills = db.query(PurchaseBill).all()
@@ -76,6 +90,18 @@ def confirm_bill(bill_id: int, db: Session = Depends(get_db),
     return {"id": bill.id, "status": bill.status.value}
 
 
+@router.delete("/bills/{bill_id}")
+def delete_bill(bill_id: int, db: Session = Depends(get_db),
+                _: User = Depends(require_admin)):
+    return master_svc.delete_record(db, PurchaseBill, bill_id)
+
+
+@router.post("/bills/bulk-delete")
+def bulk_delete_bills(payload: BulkIDsReq, db: Session = Depends(get_db),
+                       _: User = Depends(require_admin)):
+    return master_svc.bulk_delete(db, PurchaseBill, payload.ids)
+
+
 @router.get("/payments")
 def list_payments(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     payments = db.query(VendorPayment).all()
@@ -98,3 +124,15 @@ def create_payment(payload: VendorPaymentCreate, db: Session = Depends(get_db),
                     user: User = Depends(require_accountant_or_admin)):
     payment = svc.record_vendor_payment(db, payload, user.id)
     return {"id": payment.id, "payment_number": payment.payment_number, "amount": str(payment.amount)}
+
+
+@router.delete("/payments/{payment_id}")
+def delete_payment(payment_id: int, db: Session = Depends(get_db),
+                    _: User = Depends(require_admin)):
+    return master_svc.delete_record(db, VendorPayment, payment_id)
+
+
+@router.post("/payments/bulk-delete")
+def bulk_delete_payments(payload: BulkIDsReq, db: Session = Depends(get_db),
+                          _: User = Depends(require_admin)):
+    return master_svc.bulk_delete(db, VendorPayment, payload.ids)

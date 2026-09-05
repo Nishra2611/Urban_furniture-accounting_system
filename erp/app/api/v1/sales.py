@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import require_accountant_or_admin
+from app.core.deps import require_accountant_or_admin, require_admin
 from app.models.user import User
 from app.schemas.transactions import SalesOrderCreate, SaleInvoiceCreate, ReceiptCreate
+from app.schemas.master_data import BulkIDsReq
 from app.services import sales_service as svc
+from app.services import master_data_service as master_svc
 
 from app.models.sales import SalesOrder, SaleInvoice, Receipt
 
@@ -43,6 +45,18 @@ def confirm_order(order_id: int, db: Session = Depends(get_db),
     return {"id": order.id, "status": order.status.value}
 
 
+@router.delete("/orders/{order_id}")
+def delete_order(order_id: int, db: Session = Depends(get_db),
+                 _: User = Depends(require_admin)):
+    return master_svc.delete_record(db, SalesOrder, order_id)
+
+
+@router.post("/orders/bulk-delete")
+def bulk_delete_orders(payload: BulkIDsReq, db: Session = Depends(get_db),
+                        _: User = Depends(require_admin)):
+    return master_svc.bulk_delete(db, SalesOrder, payload.ids)
+
+
 @router.get("/invoices")
 def list_invoices(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     invoices = db.query(SaleInvoice).all()
@@ -76,6 +90,18 @@ def confirm_invoice(invoice_id: int, db: Session = Depends(get_db),
     return {"id": invoice.id, "status": invoice.status.value}
 
 
+@router.delete("/invoices/{invoice_id}")
+def delete_invoice(invoice_id: int, db: Session = Depends(get_db),
+                   _: User = Depends(require_admin)):
+    return master_svc.delete_record(db, SaleInvoice, invoice_id)
+
+
+@router.post("/invoices/bulk-delete")
+def bulk_delete_invoices(payload: BulkIDsReq, db: Session = Depends(get_db),
+                          _: User = Depends(require_admin)):
+    return master_svc.bulk_delete(db, SaleInvoice, payload.ids)
+
+
 @router.get("/receipts")
 def list_receipts(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     receipts = db.query(Receipt).all()
@@ -99,3 +125,15 @@ def create_receipt(payload: ReceiptCreate, db: Session = Depends(get_db),
                     user: User = Depends(require_accountant_or_admin)):
     receipt = svc.record_receipt(db, payload, user.id)
     return {"id": receipt.id, "receipt_number": receipt.receipt_number, "amount": str(receipt.amount)}
+
+
+@router.delete("/receipts/{receipt_id}")
+def delete_receipt(receipt_id: int, db: Session = Depends(get_db),
+                   _: User = Depends(require_admin)):
+    return master_svc.delete_record(db, Receipt, receipt_id)
+
+
+@router.post("/receipts/bulk-delete")
+def bulk_delete_receipts(payload: BulkIDsReq, db: Session = Depends(get_db),
+                         _: User = Depends(require_admin)):
+    return master_svc.bulk_delete(db, Receipt, payload.ids)

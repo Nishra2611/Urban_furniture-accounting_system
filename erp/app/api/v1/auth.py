@@ -75,6 +75,41 @@ def list_users(
     return db.query(User).all()
 
 
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=422, detail="You cannot delete your own account.")
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found.")
+    try:
+        db.delete(u)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Cannot delete user: linked transaction or audit records exist.")
+    return {"detail": "User deleted successfully"}
+
+
+@router.post("/users/bulk-delete")
+def bulk_delete_users(payload: dict, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    ids = payload.get("ids", [])
+    target_ids = [uid for uid in ids if uid != current_user.id]
+    if not target_ids:
+        raise HTTPException(status_code=422, detail="No valid users to delete.")
+    users = db.query(User).filter(User.id.in_(target_ids)).all()
+    count = 0
+    try:
+        for u in users:
+            db.delete(u)
+            count += 1
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Failed to bulk delete users: linked records exist.")
+    return {"deleted_count": count}
+
+
 @router.post("/forgot-password", status_code=204)
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     auth_service.request_password_reset(db, payload.email)
@@ -85,3 +120,4 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
     auth_service.reset_password(db, payload.token, payload.new_password, payload.re_password)
     return None
+
