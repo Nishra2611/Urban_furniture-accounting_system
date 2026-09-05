@@ -48,7 +48,8 @@ def seed():
             admin = User(
                 name="System Administrator",
                 login_id="admin01",
-                email="admin@urbanfurniture.local",
+                # email="admin@urbanfurniture.local",
+                email="admin@urbanfurniture.com",
                 hashed_password=hash_password("Admin@12345"),
                 role=UserRole.ADMINISTRATOR,
                 is_active=True,
