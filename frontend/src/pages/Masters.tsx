@@ -361,6 +361,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
     }
   };
 
+<<<<<<< HEAD
   if (form) {
     return (
       <div className="modal-overlay" role="dialog" aria-modal="true">
@@ -449,6 +450,8 @@ function Master({ kind }: { kind: keyof typeof configs }) {
       </div>
     );
   }
+=======
+>>>>>>> 74c71b51d1db3684629a506f52bab53be5f9ed02
 
   return (
     <>
