@@ -48,6 +48,14 @@ def me(user: User = Depends(get_current_user)):
     return user
 
 
+@router.get("/users", response_model=list[UserOut])
+def list_users(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_accountant_or_admin),
+):
+    return db.query(User).all()
+
+
 @router.post("/forgot-password", status_code=204)
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     auth_service.request_password_reset(db, payload.email)

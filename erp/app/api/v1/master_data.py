@@ -78,6 +78,11 @@ def create_analytic_account(payload: AnalyticAccountCreate, db: Session = Depend
     return svc.create_analytic_account(db, payload)
 
 
+@router.get("/analytic-accounts", response_model=list[AnalyticAccountOut])
+def list_analytic_accounts(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
+    return db.query(AnalyticAccount).filter(AnalyticAccount.is_active.is_(True)).all()
+
+
 @router.post("/analytic-budgets", response_model=AnalyticBudgetOut, status_code=201)
 def create_analytic_budget(payload: AnalyticBudgetCreate, db: Session = Depends(get_db),
                             _: User = Depends(require_accountant_or_admin)):

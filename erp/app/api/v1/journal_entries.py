@@ -8,7 +8,29 @@ from app.models.user import User
 from app.schemas.master_data import JournalEntryCreate
 from app.services.accounting_service import post_journal_entry
 
+from app.models.accounting import JournalEntry
+
 router = APIRouter(prefix="/api/v1/journal-entries", tags=["accounting"])
+
+
+@router.get("")
+def list_journal_entries(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_accountant_or_admin),
+):
+    entries = db.query(JournalEntry).all()
+    return [
+        {
+            "id": e.id,
+            "entry_number": e.entry_number,
+            "reference": e.entry_number,
+            "journal_id": e.journal_id,
+            "entry_date": e.entry_date.isoformat(),
+            "memo": e.narration,
+            "status": e.status.value,
+        }
+        for e in entries
+    ]
 
 
 @router.post("", status_code=201)
