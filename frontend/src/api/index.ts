@@ -8,6 +8,7 @@ export const auth = {
   me: () => api.get('/auth/me'),
   forgot: (email: string) => api.post('/auth/forgot-password', { email }),
   reset: (d: any) => api.post('/auth/reset-password', d),
+  changePassword: (d: any) => api.post('/auth/change-password', d),
 };
 
 export const users = {
@@ -19,36 +20,43 @@ export const masters = {
   contacts: {
     list: () => api.get('/contacts'),
     create: (d: any) => api.post('/contacts', d),
+    update: (id: string | number, d: any) => api.put(`/contacts/${id}`, d),
     deactivate: (id: string | number) => api.post(`/contacts/${id}/deactivate`),
   },
   products: {
     list: () => api.get('/products'),
     create: (d: any) => api.post('/products', d),
+    update: (id: string | number, d: any) => api.put(`/products/${id}`, d),
     deactivate: (id: string | number) => api.post(`/products/${id}/deactivate`),
   },
   taxes: {
     list: () => api.get('/taxes'),
     create: (d: any) => api.post('/taxes', d),
+    update: (id: string | number, d: any) => api.put(`/taxes/${id}`, d),
     deactivate: (id: string | number) => api.post(`/taxes/${id}/deactivate`),
   },
   accounts: {
     list: () => api.get('/chart-of-accounts'),
     create: (d: any) => api.post('/chart-of-accounts', d),
+    update: (id: string | number, d: any) => api.put(`/chart-of-accounts/${id}`, d),
     deactivate: (id: string | number) => api.post(`/chart-of-accounts/${id}/deactivate`),
   },
   journals: {
     list: () => api.get('/journals'),
     create: (d: any) => api.post('/journals', d),
+    update: (id: string | number, d: any) => api.put(`/journals/${id}`, d),
     deactivate: (id: string | number) => api.post(`/journals/${id}/deactivate`),
   },
   analytics: {
     list: () => api.get('/analytic-accounts'),
     create: (d: any) => api.post('/analytic-accounts', d),
+    update: (id: string | number, d: any) => api.put(`/analytic-accounts/${id}`, d),
     deactivate: (id: string | number) => api.post(`/analytic-accounts/${id}/deactivate`),
   },
   budgets: {
     list: () => api.get('/analytic-budgets'),
     create: (d: any) => api.post('/analytic-budgets', d),
+    update: (id: string | number, d: any) => api.put(`/analytic-budgets/${id}`, d),
     deactivate: (id: string | number) => api.post(`/analytic-budgets/${id}/deactivate`),
   },
 };
@@ -119,9 +127,12 @@ export const reports = {
 export const dashboard = () => api.get('/dashboard');
 
 export const portal = {
+  dashboard: () => api.get('/portal/dashboard'),
   myInvoices: () => api.get('/portal/my-invoices'),
   myBills: () => api.get('/portal/my-bills'),
   myPayments: () => api.get('/portal/my-payments'),
+  invoice: (id: string | number) => api.get(`/portal/invoices/${id}`),
+  bill: (id: string | number) => api.get(`/portal/bills/${id}`),
   pay: (d: any) => api.post('/portal/pay', d),
   payBill: (d: any) => api.post('/portal/pay-bill', d),
 };

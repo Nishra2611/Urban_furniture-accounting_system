@@ -32,6 +32,11 @@ def deactivate_contact(contact_id: int, db: Session = Depends(get_db),
                         _: User = Depends(require_admin)):
     return svc.deactivate(db, Contact, contact_id)
 
+@router.put("/contacts/{contact_id}", response_model=ContactOut)
+def update_contact(contact_id: int, payload: ContactCreate, db: Session = Depends(get_db),
+                   _: User = Depends(require_accountant_or_admin)):
+    return svc.update_record(db, Contact, contact_id, payload)
+
 
 @router.post("/products", response_model=ProductOut, status_code=201)
 def create_product(payload: ProductCreate, db: Session = Depends(get_db),
@@ -43,6 +48,11 @@ def create_product(payload: ProductCreate, db: Session = Depends(get_db),
 def list_products(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     return db.query(Product).filter(Product.is_active.is_(True)).all()
 
+@router.put("/products/{product_id}", response_model=ProductOut)
+def update_product(product_id: int, payload: ProductCreate, db: Session = Depends(get_db),
+                   _: User = Depends(require_accountant_or_admin)):
+    return svc.update_record(db, Product, product_id, payload)
+
 
 @router.post("/taxes", response_model=TaxOut, status_code=201)
 def create_tax(payload: TaxCreate, db: Session = Depends(get_db),
@@ -53,6 +63,11 @@ def create_tax(payload: TaxCreate, db: Session = Depends(get_db),
 @router.get("/taxes", response_model=list[TaxOut])
 def list_taxes(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     return db.query(Tax).filter(Tax.is_active.is_(True)).all()
+
+@router.put("/taxes/{tax_id}", response_model=TaxOut)
+def update_tax(tax_id: int, payload: TaxCreate, db: Session = Depends(get_db),
+               _: User = Depends(require_accountant_or_admin)):
+    return svc.update_record(db, Tax, tax_id, payload)
 
 
 @router.post("/taxes/{tax_id}/deactivate", response_model=TaxOut)
@@ -77,6 +92,11 @@ def create_account(payload: ChartOfAccountCreate, db: Session = Depends(get_db),
 def list_accounts(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     return db.query(ChartOfAccount).filter(ChartOfAccount.is_active.is_(True)).all()
 
+@router.put("/chart-of-accounts/{account_id}", response_model=ChartOfAccountOut)
+def update_account(account_id: int, payload: ChartOfAccountCreate, db: Session = Depends(get_db),
+                   _: User = Depends(require_accountant_or_admin)):
+    return svc.update_record(db, ChartOfAccount, account_id, payload)
+
 
 @router.post("/chart-of-accounts/{account_id}/deactivate", response_model=ChartOfAccountOut)
 def deactivate_account(account_id: int, db: Session = Depends(get_db),
@@ -93,6 +113,11 @@ def create_journal(payload: JournalCreate, db: Session = Depends(get_db),
 @router.get("/journals", response_model=list[JournalOut])
 def list_journals(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     return db.query(Journal).filter(Journal.is_active.is_(True)).all()
+
+@router.put("/journals/{journal_id}", response_model=JournalOut)
+def update_journal(journal_id: int, payload: JournalCreate, db: Session = Depends(get_db),
+                   _: User = Depends(require_accountant_or_admin)):
+    return svc.update_record(db, Journal, journal_id, payload)
 
 
 @router.post("/journals/{journal_id}/deactivate", response_model=JournalOut)
@@ -111,6 +136,11 @@ def create_analytic_account(payload: AnalyticAccountCreate, db: Session = Depend
 def list_analytic_accounts(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     return db.query(AnalyticAccount).filter(AnalyticAccount.is_active.is_(True)).all()
 
+@router.put("/analytic-accounts/{account_id}", response_model=AnalyticAccountOut)
+def update_analytic_account(account_id: int, payload: AnalyticAccountCreate, db: Session = Depends(get_db),
+                            _: User = Depends(require_accountant_or_admin)):
+    return svc.update_record(db, AnalyticAccount, account_id, payload)
+
 
 @router.post("/analytic-accounts/{account_id}/deactivate", response_model=AnalyticAccountOut)
 def deactivate_analytic_account(account_id: int, db: Session = Depends(get_db),
@@ -127,6 +157,11 @@ def create_analytic_budget(payload: AnalyticBudgetCreate, db: Session = Depends(
 @router.get("/analytic-budgets", response_model=list[AnalyticBudgetOut])
 def list_analytic_budgets(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     return db.query(AnalyticBudget).all()
+
+@router.put("/analytic-budgets/{budget_id}", response_model=AnalyticBudgetOut)
+def update_analytic_budget(budget_id: int, payload: AnalyticBudgetCreate, db: Session = Depends(get_db),
+                           _: User = Depends(require_accountant_or_admin)):
+    return svc.update_record(db, AnalyticBudget, budget_id, payload)
 
 
 @router.post("/analytic-budgets/{budget_id}/deactivate", response_model=AnalyticBudgetOut)

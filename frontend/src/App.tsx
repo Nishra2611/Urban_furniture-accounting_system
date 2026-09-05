@@ -1,4 +1,4 @@
-import {Navigate,Route,Routes} from 'react-router-dom';import {useAuth} from './context/AuthContext';import Layout from './components/Layout';import {Login,Signup,Forgot,Reset} from './pages/Auth';import Dashboard from './pages/Dashboard';import {Contacts,Products,Taxes,Accounts,Journals,Analytics,Budgets} from './pages/Masters';import {Documents,Payments,PaymentForm} from './pages/Transactions';import {JournalEntries} from './pages/Accounting';import {ProfitLoss,BalanceSheet,BudgetReport,Ledger} from './pages/Reports';import Admin from './pages/Admin';import Portal from './pages/Portal';
+import {Navigate,Route,Routes} from 'react-router-dom';import {useAuth} from './context/AuthContext';import Layout from './components/Layout';import {Login,Signup,Forgot,Reset} from './pages/Auth';import Dashboard from './pages/Dashboard';import {Contacts,Products,Taxes,Accounts,Journals,Analytics,Budgets} from './pages/Masters';import {Documents,Payments,PaymentForm} from './pages/Transactions';import {JournalEntries} from './pages/Accounting';import {ProfitLoss,BalanceSheet,BudgetReport,Ledger} from './pages/Reports';import Admin from './pages/Admin';import {UserDashboard,UserDocuments,UserPayments,UserProfile,ChangePassword,UserWorkspaceDetail} from './pages/UserWorkspace';
 const normalizeRole = (role?: string) => {
   if (!role) return '';
   const r = role.toLowerCase();
@@ -33,7 +33,15 @@ export default function App() {
       <Route path="/reset-password" element={<Reset />} />
       <Route element={<Guard><Layout /></Guard>}>
         <Route path="/dashboard" element={<Guard roles={['accountant','admin']}><Dashboard /></Guard>} />
-        <Route path="/portal" element={<Guard roles={['user']}><Portal /></Guard>} />
+        <Route path="/portal" element={<Guard roles={['user']}><UserDashboard /></Guard>} />
+        <Route path="/user/dashboard" element={<Guard roles={['user']}><UserDashboard /></Guard>} />
+        <Route path="/user/invoices" element={<Guard roles={['user']}><UserDocuments type="invoice" /></Guard>} />
+        <Route path="/user/bills" element={<Guard roles={['user']}><UserDocuments type="bill" /></Guard>} />
+        <Route path="/user/payments" element={<Guard roles={['user']}><UserPayments /></Guard>} />
+        <Route path="/user/invoices/:id" element={<Guard roles={['user']}><UserWorkspaceDetail type="invoice" /></Guard>} />
+        <Route path="/user/bills/:id" element={<Guard roles={['user']}><UserWorkspaceDetail type="bill" /></Guard>} />
+        <Route path="/user/profile" element={<Guard roles={['user']}><UserProfile /></Guard>} />
+        <Route path="/user/password" element={<Guard roles={['user']}><ChangePassword /></Guard>} />
         <Route path="/masters/contacts" element={<Guard roles={['accountant','admin']}><Contacts /></Guard>} />
         <Route path="/masters/products" element={<Guard roles={['accountant','admin']}><Products /></Guard>} />
         <Route path="/masters/accounts" element={<Guard roles={['accountant','admin']}><Accounts /></Guard>} />

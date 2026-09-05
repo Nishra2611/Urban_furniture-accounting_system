@@ -13,7 +13,7 @@ from app.core.security import (
 )
 from app.models.user import User, PasswordHistory, RevokedToken, PasswordResetToken
 from app.models.master_data import Contact
-from app.models.enums import UserRole
+from app.models.enums import UserRole, PartyType
 from app.schemas.auth import SignupRequest, LoginRequest, CreateUserRequest
 from app.services.audit_service import log_action
 
@@ -67,6 +67,13 @@ def signup(db: Session, payload: SignupRequest) -> User:
         db.rollback()
         raise HTTPException(status_code=500, detail="Unable to save record. Please try again.")
 
+    if contact is None:
+        contact = Contact(code=f"USR{user.id:06d}", name=payload.login_id,
+                          party_type=PartyType.CUSTOMER, email=payload.email)
+        db.add(contact)
+        db.flush()
+        user.contact_id = contact.id
+
     db.add(PasswordHistory(
         user_id=user.id, hashed_password=user.hashed_password,
         created_at=datetime.now(timezone.utc),
@@ -101,6 +108,13 @@ def create_user(db: Session, payload: CreateUserRequest, creator: User) -> User:
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Unable to save record. Please try again.")
+
+    if payload.role == UserRole.USER and contact is None:
+        contact = Contact(code=f"USR{user.id:06d}", name=payload.name or payload.login_id,
+                          party_type=PartyType.CUSTOMER, email=payload.email)
+        db.add(contact)
+        db.flush()
+        user.contact_id = contact.id
 
     db.add(PasswordHistory(
         user_id=user.id, hashed_password=user.hashed_password,
@@ -214,4 +228,17 @@ def reset_password(db: Session, raw_token: str, new_password: str, re_password: 
         user_id=user.id, hashed_password=user.hashed_password, created_at=now,
     ))
     log_action(db, user.id, "PASSWORD_RESET", "User", user.id)
+    db.commit()
+
+
+def change_password(db: Session, user: User, current_password: str,
+                    new_password: str, re_password: str) -> None:
+    if not verify_password(current_password, user.hashed_password):
+        raise HTTPException(status_code=422, detail="Current password is incorrect")
+    _check_password_rules(new_password, re_password)
+    _check_password_not_reused(db, user.id, new_password)
+    user.hashed_password = hash_password(new_password)
+    db.add(PasswordHistory(user_id=user.id, hashed_password=user.hashed_password,
+                           created_at=datetime.now(timezone.utc)))
+    log_action(db, user.id, "PASSWORD_CHANGE", "User", user.id)
     db.commit()

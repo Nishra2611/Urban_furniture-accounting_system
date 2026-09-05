@@ -298,6 +298,16 @@ function DocModal({
   const isOrder = kind === 'salesOrders' || kind === 'purchaseOrders';
   const isInvoice = kind === 'invoices';
   const isBill = kind === 'bills';
+  const defaultLine = {
+    sr: 1,
+    product_id: products[0]?.id,
+    product_name: products[0]?.name || 'Select product',
+    chart_of_account: isBill ? 'Purchase' : isInvoice ? 'Sales' : '',
+    analytic_name: analytics[0]?.name || 'Project 1',
+    quantity: 1,
+    unit_price: isSale ? Number(products[0]?.sales_price || 0) : Number(products[0]?.purchase_price || 0),
+    total: isSale ? Number(products[0]?.sales_price || 0) : Number(products[0]?.purchase_price || 0),
+  };
 
   const defaultNum = useMemo(() => {
     const list = allDocs[kind] || [];
@@ -308,35 +318,39 @@ function DocModal({
     return `INV/2026/${String(count).padStart(4, '0')}`;
   }, [kind, allDocs]);
 
-  const [form, setForm] = useState<any>(
-    initialDoc || {
+  const [form, setForm] = useState<any>(() => {
+    const base = initialDoc || {
       number: defaultNum,
       partner_name: isSale ? 'Mr. Rahul' : 'Mr. Rahul',
       date: new Date().toISOString().slice(0, 10),
       due_date: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       reference: 'ABC-26-001',
       status: 'draft',
-      lines: [
-        {
-          sr: 1,
-          product_name: 'Table',
-          chart_of_account: isBill ? 'Purchase' : isInvoice ? 'Sales' : '',
-          analytic_name: 'Project 1',
-          quantity: 3,
-          unit_price: 2000,
-          total: 6000,
-        },
-      ],
       amount_paid: 0,
       paid_via_cash: 0,
       paid_via_bank: 0,
-      amount_due: 6000,
-    }
-  );
+      amount_due: 0,
+    };
+    return {
+      ...base,
+      lines: Array.isArray(base.lines) && base.lines.length > 0 ? base.lines : [{ ...defaultLine }],
+    };
+  });
 
   const [paymentModal, setPaymentModal] = useState(false);
   const [error, setError] = useState('');
   const [budgetExceededWarning, setBudgetExceededWarning] = useState(false);
+
+  useEffect(() => {
+    if (!form.lines || form.lines.length === 0 || (form.lines.length === 1 && form.lines[0].product_name === 'Select product' && products.length > 0)) {
+      const product = products[0];
+      const price = isSale ? Number(product?.sales_price || 0) : Number(product?.purchase_price || 0);
+      setForm((current: any) => ({
+        ...current,
+        lines: [{ ...defaultLine, product_id: product?.id, product_name: product?.name || 'Select product', unit_price: price, total: price }],
+      }));
+    }
+  }, [products, analytics]);
 
   const linesTotal = useMemo(() => {
     return (form.lines || []).reduce((s: number, l: any) => s + Number(l.total || 0), 0);
@@ -369,7 +383,8 @@ function DocModal({
       }
     }
     newLines[idx] = item;
-    setForm({ ...form, lines: newLines, total: linesTotal });
+    const nextTotal = newLines.reduce((sum: number, line: any) => sum + Number(line.total || 0), 0);
+    setForm({ ...form, lines: newLines, total: nextTotal });
   };
 
   const addLine = () => {
@@ -380,12 +395,13 @@ function DocModal({
         ...cur,
         {
           sr: cur.length + 1,
-          product_name: products[0]?.name || 'Table',
+          product_id: products[0]?.id,
+          product_name: products[0]?.name || 'Select product',
           chart_of_account: isBill ? 'Purchase' : isInvoice ? 'Sales' : '',
           analytic_name: analytics[0]?.name || 'Project 1',
           quantity: 1,
-          unit_price: 2000,
-          total: 2000,
+          unit_price: isSale ? Number(products[0]?.sales_price || 0) : Number(products[0]?.purchase_price || 0),
+          total: isSale ? Number(products[0]?.sales_price || 0) : Number(products[0]?.purchase_price || 0),
         },
       ],
     });
@@ -792,7 +808,7 @@ function DocModal({
               </tr>
             </thead>
             <tbody>
-              {(form.lines || []).map((l: any, i: number) => (
+                  {(form.lines?.length ? form.lines : [{ ...defaultLine }]).map((l: any, i: number) => (
                 <tr key={i}>
                   <td><b>{i + 1}</b></td>
                   <td>

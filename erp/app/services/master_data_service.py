@@ -1,7 +1,12 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.master_data import Contact, Product, Tax, ChartOfAccount, AnalyticAccount, AnalyticBudget
+from app.models.user import User, PasswordHistory
+from app.models.enums import UserRole
+from app.core.security import hash_password, validate_password_strength
 from app.schemas.master_data import (
     ContactCreate, ProductCreate, TaxCreate, ChartOfAccountCreate, JournalCreate,
     AnalyticAccountCreate, AnalyticBudgetCreate,
@@ -16,8 +21,27 @@ def _unique_or_409(db: Session, model, code: str):
 
 def create_contact(db: Session, payload: ContactCreate) -> Contact:
     _unique_or_409(db, Contact, payload.code)
-    contact = Contact(**payload.model_dump())
+    values = payload.model_dump(exclude={"create_portal_user", "portal_login_id", "portal_password"})
+    contact = Contact(**values)
     db.add(contact)
+    db.flush()
+    if payload.create_portal_user:
+        if not payload.email or not payload.portal_login_id or not payload.portal_password:
+            raise HTTPException(status_code=422, detail="Portal user requires email, login ID, and password")
+        password_error = validate_password_strength(payload.portal_password)
+        if password_error:
+            raise HTTPException(status_code=422, detail=password_error)
+        if db.query(User).filter(User.login_id == payload.portal_login_id).first():
+            raise HTTPException(status_code=409, detail="Portal login ID already exists")
+        if db.query(User).filter(User.email.ilike(str(payload.email))).first():
+            raise HTTPException(status_code=409, detail="Portal email already has a user")
+        portal_user = User(name=contact.name, login_id=payload.portal_login_id,
+                           email=str(payload.email), hashed_password=hash_password(payload.portal_password),
+                           role=UserRole.USER, is_active=True, contact_id=contact.id)
+        db.add(portal_user)
+        db.flush()
+        db.add(PasswordHistory(user_id=portal_user.id, hashed_password=portal_user.hashed_password,
+                               created_at=datetime.now(timezone.utc)))
     db.commit()
     db.refresh(contact)
     return contact
@@ -88,6 +112,25 @@ def deactivate(db: Session, model, obj_id: int):
         raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
     obj.is_active = False
     db.commit()
+    return obj
+
+
+def update_record(db: Session, model, obj_id: int, payload) :
+    obj = db.query(model).filter(model.id == obj_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
+    values = payload.model_dump(exclude_unset=True)
+    if model is Contact:
+        values = {key: value for key, value in values.items()
+                  if key not in {"create_portal_user", "portal_login_id", "portal_password"}}
+    if "code" in values and values["code"] != getattr(obj, "code", values["code"]):
+        duplicate = db.query(model).filter(model.code == values["code"], model.id != obj_id).first()
+        if duplicate:
+            raise HTTPException(status_code=409, detail=f"{model.__name__} code already exists")
+    for key, value in values.items():
+        setattr(obj, key, value)
+    db.commit()
+    db.refresh(obj)
     return obj
 
 

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button, Empty, Field, PageHeader, Status, Toolbar, money } from '../components/UI';
 import type { Contact, Product, Tax, Account, Journal, Analytic, Budget } from '../types/api';
 
-export function MiniPieChart({ achieved = 10000, committed = 200000 }: { achieved: number; committed: number }) {
+export function MiniPieChart({ achieved = 0, committed = 0 }: { achieved: number; committed: number }) {
   const safeCommitted = committed > 0 ? committed : 1;
   const safeAchieved = Math.min(Math.max(achieved, 0), safeCommitted);
   const pct = safeAchieved / safeCommitted;
@@ -47,6 +47,17 @@ export function MiniPieChart({ achieved = 10000, committed = 200000 }: { achieve
       <title>{`Achieved: ${Math.round(pct * 100)}% | Balance: ${Math.round((1 - pct) * 100)}%`}</title>
     </svg>
   );
+}
+
+function budgetProgress(record: any) {
+  const committed = Number(record.budget_amount ?? record.committed_amount ?? record.amount ?? record.lines?.[0]?.committed_amount ?? 0);
+  const stage = String(record.stage || 'Draft').toLowerCase();
+  const achieved = stage === 'confirmed' || stage === 'confirm'
+    ? committed
+    : stage === 'draft'
+    ? 0
+    : Number(record.achieved_amount ?? 0);
+  return { achieved, committed };
 }
 
 export function formatDateDDMMYYYY(dateStr?: string) {
@@ -354,6 +365,9 @@ function Master({ kind }: { kind: keyof typeof configs }) {
           address: form.address || address || null,
           tax_id: form.tax_id || null,
           image_url: form.image_url || null,
+          create_portal_user: Boolean(form.create_portal_user),
+          portal_login_id: form.portal_login_id || null,
+          portal_password: form.portal_password || null,
         };
       } else if (kind === 'products') {
         payload = {
@@ -394,11 +408,38 @@ function Master({ kind }: { kind: keyof typeof configs }) {
           revision_of: form.revision_of || form.revised_from || null };
       }
 
-      await c.api.create(payload);
+      const response = form.id && c.api.update
+        ? await c.api.update(form.id, payload)
+        : await c.api.create(payload);
       await load();
       setForm(null);
     } catch (e) {
       setError(err(e));
+    }
+  };
+
+  const persistBudgetStage = async (stage: string) => {
+    setError('');
+    const payload = {
+      name: form.name || 'New Budget',
+      analytic_account_id: Number(form.analytic_account_id || analyticsList[0]?.id),
+      period_start: form.period_start || form.start_date || '2026-01-01',
+      period_end: form.period_end || form.end_date || '2026-12-31',
+      budget_amount: Number(form.budget_amount ?? form.amount ?? form.lines?.[0]?.committed_amount ?? 0),
+      responsible_name: form.responsible_name || null,
+      stage,
+      revised_with: form.revised_with || null,
+      revision_of: form.revision_of || form.revised_from || null,
+    };
+    try {
+      const response = form.id && c.api.update
+        ? await c.api.update(form.id, payload)
+        : await c.api.create(payload);
+      const saved = response.data;
+      await load();
+      setForm({ ...form, ...saved, start_date: saved.period_start, end_date: saved.period_end, stage: saved.stage });
+    } catch (value) {
+      setError(err(value));
     }
   };
 
@@ -563,10 +604,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                       <td>{formatDateDDMMYYYY(r.end_date || '2026-01-31')}</td>
                       <td><Status value={r.stage || 'Draft'} /></td>
                       <td>
-                        <MiniPieChart
-                          achieved={r.lines?.[0]?.achieved_amount ?? (r.stage === 'Draft' ? 0 : 10000)}
-                          committed={r.lines?.[0]?.committed_amount ?? (r.committed_amount || r.amount || 200000)}
-                        />
+                        <MiniPieChart {...budgetProgress(r)} />
                       </td>
                     </>
                   )}
@@ -608,13 +646,13 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                     {(!form.stage || form.stage === 'Draft') && (
                       <Button
                         type="button"
-                        onClick={() => setForm({ ...form, stage: 'Confirm' })}
+                        onClick={() => persistBudgetStage('Confirmed')}
                       >
-                        Confirm
+                        Done
                       </Button>
                     )}
 
-                    {form.stage === 'Confirm' && (
+                    {(form.stage === 'Confirmed' || form.stage === 'Confirm') && (
                       <Button
                         type="button"
                         onClick={() => {
@@ -644,10 +682,11 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => setForm({ ...form, stage: 'Cancelled' })}
+                      onClick={() => persistBudgetStage('Cancelled')}
                     >
                       Cancel
                     </Button>
+                    {form.id && <Button type="button" onClick={() => persistBudgetStage(form.stage || 'Draft')}>Done</Button>}
                   </>
                 ) : (
                   <>
@@ -686,7 +725,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
               {kind === 'budgets' && (
                 <div className="stage-breadcrumb">
                   <span className={`stage-step ${(!form.stage || form.stage === 'Draft') ? 'active' : ''}`}>Draft</span>
-                  <span className={`stage-step ${form.stage === 'Confirm' ? 'active' : ''}`}>Confirm</span>
+                  <span className={`stage-step ${form.stage === 'Confirmed' || form.stage === 'Confirm' ? 'active' : ''}`}>Confirm</span>
                   <span className={`stage-step ${form.stage === 'Revised' ? 'active' : ''}`}>Revised</span>
                   <span className={`stage-step ${form.stage === 'Cancelled' ? 'active' : ''}`}>Cancelled</span>
                 </div>
@@ -736,6 +775,25 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
                       />
                     </Field>
+                    <Field label="Create Portal Login">
+                      <select
+                        value={form.create_portal_user ? 'yes' : 'no'}
+                        onChange={(e) => setForm({ ...form, create_portal_user: e.target.value === 'yes' })}
+                      >
+                        <option value="no">No</option>
+                        <option value="yes">Yes - allow this contact to use the portal</option>
+                      </select>
+                    </Field>
+                    {form.create_portal_user && (
+                      <>
+                        <Field label="Portal Login ID" required>
+                          <input value={form.portal_login_id || ''} onChange={(e) => setForm({ ...form, portal_login_id: e.target.value })} />
+                        </Field>
+                        <Field label="Portal Password" required>
+                          <input type="password" value={form.portal_password || ''} onChange={(e) => setForm({ ...form, portal_password: e.target.value })} />
+                        </Field>
+                      </>
+                    )}
                     <Field label="Phone">
                       <input
                         type="text"
@@ -1074,7 +1132,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                               <td>{String(b.start_date || '2026-01-01').slice(0, 10)}</td>
                               <td>{String(b.end_date || '2026-01-31').slice(0, 10)}</td>
                               <td>{money(b.committed_amount || b.amount || 200000)}</td>
-                              <td>{money(b.lines?.[0]?.achieved_amount || 10000)}</td>
+                              <td>{money(String(b.stage || '').toLowerCase() === 'confirmed' ? (b.budget_amount || b.amount || b.committed_amount || 0) : (b.lines?.[0]?.achieved_amount || 0))}</td>
                             </tr>
                           ))}
                       </tbody>
@@ -1258,7 +1316,11 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                         },
                       ]).map((l: any, i: number) => {
                         const committed = Number(l.committed_amount || 0);
-                        const achieved = form.stage === 'Draft' ? 0 : Number(l.achieved_amount || 10000);
+                        const achieved = String(form.stage || 'Draft').toLowerCase() === 'confirmed'
+                          ? committed
+                          : String(form.stage || 'Draft').toLowerCase() === 'draft'
+                          ? 0
+                          : Number(l.achieved_amount || 0);
                         const pct = committed > 0 ? Math.round((achieved / committed) * 100) : 0;
                         const toAchieve = committed - achieved;
                         return (

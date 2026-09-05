@@ -21,6 +21,8 @@ import {
   LogOut,
   UserRound,
   ShieldCheck,
+  CreditCard,
+  LockKeyhole,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -61,7 +63,7 @@ export default function Layout() {
   const isAdminRole = userRole === 'admin' || userRole === 'administrator';
 
   const visibleGroups: NavGroup[] = isUserRole
-    ? [['Overview', [['My Portal', '/portal', Receipt]]]]
+    ? [['Workspace', [['Dashboard', '/user/dashboard', LayoutDashboard]]], ['My Business', [['My Invoices', '/user/invoices', Receipt], ['My Bills', '/user/bills', FileText], ['My Payments', '/user/payments', CreditCard]]], ['Account', [['My Profile', '/user/profile', UserRound], ['Change Password', '/user/password', LockKeyhole]]]]
     : groups.map(([title, items]) => [title, items.filter(([, path]) => path !== '/portal')] as NavGroup);
   const nav = useNavigate();
 

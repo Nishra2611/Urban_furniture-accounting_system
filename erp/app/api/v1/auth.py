@@ -7,7 +7,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin
 from app.schemas.auth import (
     SignupRequest, LoginRequest, TokenResponse, UserOut, CreateUserRequest,
-    ForgotPasswordRequest, ResetPasswordRequest,
+    ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest,
 )
 from app.services import auth_service
 from app.models.user import User
@@ -57,6 +57,14 @@ def create_user(
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
     return user
+
+
+@router.post("/change-password", status_code=204)
+def change_password(payload: ChangePasswordRequest, db: Session = Depends(get_db),
+                    user: User = Depends(get_current_user)):
+    auth_service.change_password(db, user, payload.current_password,
+                                 payload.new_password, payload.re_password)
+    return None
 
 
 @router.get("/users", response_model=list[UserOut])

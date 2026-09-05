@@ -101,7 +101,7 @@ def test_contact_user_cannot_access_staff_or_portal_without_contact(client):
     })
     headers = auth_headers(client, "portalusr1", "Str0ng!Pass")
     assert client.get("/api/v1/dashboard", headers=headers).status_code == 403
-    assert client.get("/api/v1/portal/my-invoices", headers=headers).status_code == 422
+    assert client.get("/api/v1/portal/my-invoices", headers=headers).status_code == 200
 
 
 def test_admin_can_create_accountant(client, db_session):
@@ -112,6 +112,19 @@ def test_admin_can_create_accountant(client, db_session):
     })
     assert resp.status_code == 201, resp.text
     assert resp.json()["role"] == "Accountant"
+
+
+def test_new_contact_user_gets_customer_contact(client, db_session):
+    headers = create_admin(client, db_session)
+    response = client.post("/api/v1/auth/create-user", headers=headers, json={
+        "name": "Portal Customer", "login_id": "portalnew", "email": "portalnew@test.com",
+        "role": "User", "password": "Str0ng!Pass", "re_password": "Str0ng!Pass",
+    })
+    assert response.status_code == 201, response.text
+    assert response.json()["role"] == "User"
+    user = db_session.query(User).filter(User.login_id == "portalnew").first()
+    assert user.contact_id is not None
+    assert client.get("/api/v1/portal/my-invoices", headers=auth_headers(client, "portalnew", "Str0ng!Pass")).status_code == 200
 
 
 def test_account_locks_after_failed_attempts(client):
