@@ -27,9 +27,9 @@ export const masters = {
     deactivate: (id: string | number) => api.post(`/products/${id}/deactivate`),
   },
   taxes: {
-    list: async () => ({ data: [{ id: 1, name: 'Standard Tax', rate: 10, tax_type: 'percentage', is_active: true }] }),
-    create: async (d: any) => ({ data: d }),
-    deactivate: async (id: any) => ({ data: id }),
+    list: () => api.get('/taxes'),
+    create: (d: any) => api.post('/taxes', d),
+    deactivate: (id: string | number) => api.post(`/taxes/${id}/deactivate`),
   },
   accounts: {
     list: () => api.get('/chart-of-accounts'),

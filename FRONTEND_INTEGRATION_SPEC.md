@@ -28,7 +28,7 @@ This document provides a comprehensive, complete technical analysis of the backe
 | :--- | :---: | :---: | :---: |
 | Auth (Signup/Login/Logout/Me/Forgot/Reset) | ✅ | ✅ | ✅ |
 | User Portal (`/api/v1/portal/*`) | ✅ | ❌ (Unless linked to contact) | ❌ (Unless linked to contact) |
-| User Creation (`/api/v1/auth/create-user`) | ❌ | ✅ | ✅ |
+| User Creation (`/api/v1/auth/create-user`) | ❌ | ❌ | ✅ |
 | Master Data (Contacts, Products, COA, Journals, Budgets) | ❌ | ✅ | ✅ |
 | Sales Workflow (SO, Invoices, Receipts) | ❌ | ✅ | ✅ |
 | Purchase Workflow (PO, Bills, Vendor Payments) | ❌ | ✅ | ✅ |
@@ -326,7 +326,7 @@ export interface PortalInvoice {
 | `/api/v1/auth/signup` | POST | ❌ | `SignupRequest` | `UserOut` (201) |
 | `/api/v1/auth/login` | POST | ❌ | `LoginRequest` | `TokenResponse` (200) |
 | `/api/v1/auth/logout` | POST | ✅ | None | None (204) |
-| `/api/v1/auth/create-user` | POST | ✅ (Acct/Admin) | `CreateUserRequest` | `UserOut` (201) |
+| `/api/v1/auth/create-user` | POST | ✅ (Admin) | `CreateUserRequest` | `UserOut` (201) |
 | `/api/v1/auth/me` | GET | ✅ | None | `UserOut` (200) |
 | `/api/v1/auth/forgot-password` | POST | ❌ | `{ email }` | None (204) |
 | `/api/v1/auth/reset-password` | POST | ❌ | `{ token, new_password, re_password }` | None (204) |

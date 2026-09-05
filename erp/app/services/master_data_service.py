@@ -1,9 +1,9 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.master_data import Contact, Product, ChartOfAccount, AnalyticAccount, AnalyticBudget
+from app.models.master_data import Contact, Product, Tax, ChartOfAccount, AnalyticAccount, AnalyticBudget
 from app.schemas.master_data import (
-    ContactCreate, ProductCreate, ChartOfAccountCreate, JournalCreate,
+    ContactCreate, ProductCreate, TaxCreate, ChartOfAccountCreate, JournalCreate,
     AnalyticAccountCreate, AnalyticBudgetCreate,
 )
 from app.models.accounting import Journal
@@ -30,6 +30,18 @@ def create_product(db: Session, payload: ProductCreate) -> Product:
     db.commit()
     db.refresh(product)
     return product
+
+
+def create_tax(db: Session, payload: TaxCreate) -> Tax:
+    if payload.rate < 0:
+        raise HTTPException(status_code=422, detail="Tax rate cannot be negative")
+    if payload.tax_type not in ("percentage", "fixed"):
+        raise HTTPException(status_code=422, detail="Tax type must be percentage or fixed")
+    tax = Tax(**payload.model_dump())
+    db.add(tax)
+    db.commit()
+    db.refresh(tax)
+    return tax
 
 
 def create_account(db: Session, payload: ChartOfAccountCreate) -> ChartOfAccount:

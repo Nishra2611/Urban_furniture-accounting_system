@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_accountant_or_admin
+from app.core.deps import get_current_user, require_admin
 from app.schemas.auth import (
     SignupRequest, LoginRequest, TokenResponse, UserOut, CreateUserRequest,
     ForgotPasswordRequest, ResetPasswordRequest,
@@ -49,7 +49,7 @@ def logout(
 def create_user(
     payload: CreateUserRequest,
     db: Session = Depends(get_db),
-    creator: User = Depends(require_accountant_or_admin),
+    creator: User = Depends(require_admin),
 ):
     return auth_service.create_user(db, payload, creator)
 
@@ -62,7 +62,7 @@ def me(user: User = Depends(get_current_user)):
 @router.get("/users", response_model=list[UserOut])
 def list_users(
     db: Session = Depends(get_db),
-    _: User = Depends(require_accountant_or_admin),
+    _: User = Depends(require_admin),
 ):
     return db.query(User).all()
 

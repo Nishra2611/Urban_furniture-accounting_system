@@ -44,7 +44,12 @@ def seed():
 
         db.flush()
 
-        if not db.query(User).filter(User.login_id == "admin01").first():
+        existing_admin = db.query(User).filter(User.login_id == "admin01").first()
+        if existing_admin:
+            if existing_admin.email == "admin@urbanfurniture.local":
+                existing_admin.email = "admin@urbanfurniture.com"
+                print("Updated admin email to admin@urbanfurniture.com")
+        else:
             admin = User(
                 name="System Administrator",
                 login_id="admin01",

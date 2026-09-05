@@ -1,4 +1,6 @@
 from tests.conftest import create_admin, auth_headers
+from app.models.enums import UserRole
+from app.models.user import User
 
 
 def test_signup_success(client):
@@ -74,6 +76,22 @@ def test_create_user_requires_accountant_or_admin(client, db_session):
         "role": "Administrator", "password": "Str0ng!Pass", "re_password": "Str0ng!Pass",
     })
     assert resp.status_code == 403
+
+
+def test_accountant_cannot_manage_users(client, db_session):
+    client.post("/api/v1/auth/signup", json={
+        "login_id": "acctusr1", "email": "acctusr@test.com",
+        "password": "Str0ng!Pass", "re_password": "Str0ng!Pass",
+    })
+    user = db_session.query(User).filter_by(login_id="acctusr1").first()
+    user.role = UserRole.ACCOUNTANT
+    db_session.commit()
+    headers = auth_headers(client, "acctusr1", "Str0ng!Pass")
+    assert client.get("/api/v1/auth/users", headers=headers).status_code == 403
+    assert client.post("/api/v1/auth/create-user", headers=headers, json={
+        "name": "New Guy", "login_id": "newuser02", "email": "new2@test.com",
+        "role": "User", "password": "Str0ng!Pass", "re_password": "Str0ng!Pass",
+    }).status_code == 403
 
 
 def test_admin_can_create_accountant(client, db_session):

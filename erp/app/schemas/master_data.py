@@ -45,6 +45,20 @@ class ProductOut(ProductCreate):
         from_attributes = True
 
 
+class TaxCreate(BaseModel):
+    name: str
+    rate: Decimal
+    tax_type: str
+
+
+class TaxOut(TaxCreate):
+    id: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
 class ChartOfAccountCreate(BaseModel):
     code: str
     name: str

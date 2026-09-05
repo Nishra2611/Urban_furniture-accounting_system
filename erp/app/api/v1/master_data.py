@@ -4,10 +4,10 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.deps import require_accountant_or_admin
 from app.models.user import User
-from app.models.master_data import Contact, Product, ChartOfAccount, AnalyticAccount, AnalyticBudget
+from app.models.master_data import Contact, Product, Tax, ChartOfAccount, AnalyticAccount, AnalyticBudget
 from app.models.accounting import Journal
 from app.schemas.master_data import (
-    ContactCreate, ContactOut, ProductCreate, ProductOut,
+    ContactCreate, ContactOut, ProductCreate, ProductOut, TaxCreate, TaxOut,
     ChartOfAccountCreate, ChartOfAccountOut, JournalCreate, JournalOut,
     AnalyticAccountCreate, AnalyticAccountOut, AnalyticBudgetCreate, AnalyticBudgetOut,
 )
@@ -42,6 +42,23 @@ def create_product(payload: ProductCreate, db: Session = Depends(get_db),
 @router.get("/products", response_model=list[ProductOut])
 def list_products(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
     return db.query(Product).filter(Product.is_active.is_(True)).all()
+
+
+@router.post("/taxes", response_model=TaxOut, status_code=201)
+def create_tax(payload: TaxCreate, db: Session = Depends(get_db),
+               _: User = Depends(require_accountant_or_admin)):
+    return svc.create_tax(db, payload)
+
+
+@router.get("/taxes", response_model=list[TaxOut])
+def list_taxes(db: Session = Depends(get_db), _: User = Depends(require_accountant_or_admin)):
+    return db.query(Tax).filter(Tax.is_active.is_(True)).all()
+
+
+@router.post("/taxes/{tax_id}/deactivate", response_model=TaxOut)
+def deactivate_tax(tax_id: int, db: Session = Depends(get_db),
+                   _: User = Depends(require_accountant_or_admin)):
+    return svc.deactivate(db, Tax, tax_id)
 
 
 @router.post("/products/{product_id}/deactivate", response_model=ProductOut)

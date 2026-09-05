@@ -11,8 +11,9 @@ const configs: any = {
     api: masters.contacts,
     columns: ['Name', 'Type', 'Email', 'Phone', 'Status'],
     fields: [
+      ['code', 'Contact Code', 'text', true],
       ['name', 'Contact Name', 'text', true],
-      ['contact_type', 'Contact Type', 'select', true, ['customer', 'vendor', 'both']],
+      ['party_type', 'Contact Type', 'select', true, ['Customer', 'Vendor', 'Both']],
       ['email', 'Email', 'email'],
       ['phone', 'Phone', 'text'],
       ['address', 'Address', 'textarea'],
@@ -25,12 +26,12 @@ const configs: any = {
     api: masters.products,
     columns: ['Product', 'SKU', 'Sales Price', 'Cost Price', 'Status'],
     fields: [
+      ['code', 'Product Code', 'text', true],
       ['name', 'Product Name', 'text', true],
-      ['sku', 'SKU', 'text', true],
       ['description', 'Description', 'textarea'],
-      ['unit_price', 'Sales Price', 'number', true],
-      ['cost_price', 'Cost Price', 'number', true],
-      ['tax_id', 'Tax', 'selectTax'],
+      ['sales_price', 'Sales Price', 'number', true],
+      ['purchase_price', 'Purchase Price', 'number', true],
+      ['tax_rate', 'Tax Rate %', 'number', true],
     ],
   },
   taxes: {
@@ -52,7 +53,7 @@ const configs: any = {
     fields: [
       ['code', 'Account Code', 'text', true],
       ['name', 'Account Name', 'text', true],
-      ['account_type', 'Account Type', 'select', true, ['asset', 'liability', 'equity', 'income', 'expense']],
+      ['account_type', 'Account Type', 'select', true, ['Asset', 'Liability', 'Equity', 'Income', 'Expense']],
       ['parent_id', 'Parent Account', 'selectAccount'],
     ],
   },
@@ -64,7 +65,7 @@ const configs: any = {
     fields: [
       ['code', 'Journal Code', 'text', true],
       ['name', 'Journal Name', 'text', true],
-      ['journal_type', 'Journal Type', 'select', true, ['sales', 'purchase', 'cash', 'bank']],
+      ['journal_type', 'Journal Type', 'select', true, ['Sales', 'Purchase', 'Cash', 'Bank']],
     ],
   },
   analytics: {
@@ -84,10 +85,10 @@ const configs: any = {
     columns: ['Budget', 'Account', 'Period', 'Amount'],
     fields: [
       ['name', 'Budget Name', 'text', true],
-      ['account_id', 'Account', 'selectAccount', true],
-      ['start_date', 'Start Date', 'date', true],
-      ['end_date', 'End Date', 'date', true],
-      ['amount', 'Budget Amount', 'number', true],
+      ['analytic_account_id', 'Analytic Account', 'selectAnalytic', true],
+      ['period_start', 'Start Date', 'date', true],
+      ['period_end', 'End Date', 'date', true],
+      ['budget_amount', 'Budget Amount', 'number', true],
     ],
   },
 };
@@ -102,6 +103,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [analytics, setAnalytics] = useState<Analytic[]>([]);
   const [taxes, setTaxes] = useState<Tax[]>([]);
 
   const load = async () => {
@@ -109,6 +111,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
     try {
       const r = await c.api.list();
       setRows(r.data);
+      setError('');
     } catch (e) {
       setError(err(e));
     } finally {
@@ -118,8 +121,8 @@ function Master({ kind }: { kind: keyof typeof configs }) {
 
   useEffect(() => {
     load();
-    if (kind === 'accounts' || kind === 'budgets') masters.accounts.list().then((r) => setAccounts(r.data));
-    if (kind === 'products') masters.taxes.list().then((r) => setTaxes(r.data));
+    if (kind === 'accounts') masters.accounts.list().then((r) => setAccounts(r.data));
+    if (kind === 'budgets') masters.analytics.list().then((r) => setAnalytics(r.data));
   }, [kind]);
 
   const filtered = useMemo(
@@ -132,12 +135,15 @@ function Master({ kind }: { kind: keyof typeof configs }) {
     setError('');
     try {
       const payload = { ...form };
-      for (const k of ['unit_price', 'cost_price', 'rate', 'amount']) {
+      for (const k of ['sales_price', 'purchase_price', 'tax_rate', 'budget_amount']) {
         if (payload[k] !== undefined && payload[k] !== '') payload[k] = Number(payload[k]);
       }
+      for (const k of ['email', 'phone', 'address', 'tax_id', 'parent_id', 'analytic_account_id']) {
+        if (payload[k] === '') payload[k] = null;
+      }
       await c.api.create(payload);
+      await load();
       setForm(null);
-      load();
     } catch (e) {
       setError(err(e));
     }
@@ -189,6 +195,18 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                   >
                     <option value="">Select account...</option>
                     {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.code} · {a.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : f[2] === 'selectAnalytic' ? (
+                  <select
+                    value={form[f[0]] || ''}
+                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value || null })}
+                  >
+                    <option value="">Select analytic account...</option>
+                    {analytics.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.code} · {a.name}
                       </option>
@@ -284,12 +302,12 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                 <span>{r.email || r.sku || r.code || ''}</span>
                 <strong>
                   {kind === 'products'
-                    ? money(r.unit_price)
+                    ? money(r.sales_price)
                     : kind === 'budgets'
-                    ? money(r.amount)
+                    ? money(r.budget_amount)
                     : kind === 'taxes'
                     ? `${Number(r.rate)}%`
-                    : r.contact_type || r.account_type || r.journal_type || ''}
+                    : r.party_type || r.account_type || r.journal_type || ''}
                 </strong>
               </div>
             ))}
@@ -332,7 +350,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                       </td>
                       {kind === 'contacts' && (
                         <>
-                          <td>{r.contact_type}</td>
+                          <td>{r.party_type}</td>
                           <td>{r.email || '—'}</td>
                           <td>{r.phone || '—'}</td>
                           <td>
@@ -342,9 +360,9 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                       )}
                       {kind === 'products' && (
                         <>
-                          <td>{r.sku}</td>
-                          <td>{money(r.unit_price)}</td>
-                          <td>{money(r.cost_price)}</td>
+                          <td>{r.code}</td>
+                          <td>{money(r.sales_price)}</td>
+                          <td>{money(r.purchase_price)}</td>
                           <td>
                             <Status value={r.is_active ? 'Active' : 'Archived'} />
                           </td>
@@ -378,11 +396,11 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                       )}
                       {kind === 'budgets' && (
                         <>
-                          <td>{r.account_id}</td>
+                          <td>{r.analytic_account_id}</td>
                           <td>
-                            {String(r.start_date).slice(0, 10)} → {String(r.end_date).slice(0, 10)}
+                            {String(r.period_start).slice(0, 10)} → {String(r.period_end).slice(0, 10)}
                           </td>
-                          <td>{money(r.amount)}</td>
+                          <td>{money(r.budget_amount)}</td>
                         </>
                       )}
                     </>
