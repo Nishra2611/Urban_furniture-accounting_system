@@ -65,8 +65,9 @@ const configs: any = {
     api: masters.contacts,
     columns: ['Name', 'Type', 'Email', 'Phone', 'Status'],
     fields: [
+      ['code', 'Contact Code', 'text', true],
       ['name', 'Contact Name', 'text', true],
-      ['contact_type', 'Contact Type', 'select', true, ['customer', 'vendor', 'both']],
+      ['party_type', 'Contact Type', 'select', true, ['Customer', 'Vendor', 'Both']],
       ['email', 'Email', 'email'],
       ['phone', 'Phone', 'text'],
       ['address', 'Address', 'textarea'],
@@ -77,7 +78,15 @@ const configs: any = {
     title: 'Products',
     sub: 'Items used across sales and purchases',
     api: masters.products,
-    columns: ['Product Name', 'Type', 'Category', 'Sales Price', 'Cost'],
+    columns: ['Product', 'SKU', 'Sales Price', 'Cost Price', 'Status'],
+    fields: [
+      ['code', 'Product Code', 'text', true],
+      ['name', 'Product Name', 'text', true],
+      ['description', 'Description', 'textarea'],
+      ['sales_price', 'Sales Price', 'number', true],
+      ['purchase_price', 'Purchase Price', 'number', true],
+      ['tax_rate', 'Tax Rate %', 'number', true],
+    ],
   },
   taxes: {
     title: 'Taxes',
@@ -94,13 +103,24 @@ const configs: any = {
     title: 'Chart of Accounts',
     sub: 'Financial accounts used by the accounting engine',
     api: masters.accounts,
-    columns: ['Account Name', 'Type'],
+    columns: ['Code', 'Account', 'Type', 'Status'],
+    fields: [
+      ['code', 'Account Code', 'text', true],
+      ['name', 'Account Name', 'text', true],
+      ['account_type', 'Account Type', 'select', true, ['Asset', 'Liability', 'Equity', 'Income', 'Expense']],
+      ['parent_id', 'Parent Account', 'selectAccount'],
+    ],
   },
   journals: {
     title: 'Journals',
     sub: 'Sales, purchase, cash and bank accounting journals',
     api: masters.journals,
-    columns: ['Journal Name', 'Type', 'Default Account'],
+    columns: ['Code', 'Journal', 'Type', 'Status'],
+    fields: [
+      ['code', 'Journal Code', 'text', true],
+      ['name', 'Journal Name', 'text', true],
+      ['journal_type', 'Journal Type', 'select', true, ['Sales', 'Purchase', 'Cash', 'Bank']],
+    ],
   },
   analytics: {
     title: 'Analytic Accounts',
@@ -112,7 +132,14 @@ const configs: any = {
     title: 'Budgets',
     sub: 'Plan amounts against an account and reporting period',
     api: masters.budgets,
-    columns: ['Budget', 'Start Date', 'End Date', 'Status', 'Pie Chart'],
+    columns: ['Budget', 'Account', 'Period', 'Amount'],
+    fields: [
+      ['name', 'Budget Name', 'text', true],
+      ['analytic_account_id', 'Analytic Account', 'selectAnalytic', true],
+      ['period_start', 'Start Date', 'date', true],
+      ['period_end', 'End Date', 'date', true],
+      ['budget_amount', 'Budget Amount', 'number', true],
+    ],
   },
 };
 
@@ -171,8 +198,10 @@ function Master({ kind }: { kind: keyof typeof configs }) {
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountsList, setAccountsList] = useState<any[]>(DEFAULT_ACCOUNTS);
   const [contactsList, setContactsList] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<Analytic[]>([]);
   const [analyticsList, setAnalyticsList] = useState<any[]>(DEFAULT_ANALYTICS);
   const [allBudgetsList, setAllBudgetsList] = useState<any[]>(DEFAULT_BUDGETS);
   const [categories, setCategories] = useState<string[]>(['Furniture', 'Chairs', 'Tables', 'Office', 'Decor', 'General']);
@@ -192,6 +221,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
         if (kind === 'budgets') data = DEFAULT_BUDGETS;
       }
       setRows(data);
+      setError('');
     } catch (e) {
       if (kind === 'accounts') setRows(DEFAULT_ACCOUNTS);
       else if (kind === 'journals') setRows(DEFAULT_JOURNALS);
@@ -206,13 +236,19 @@ function Master({ kind }: { kind: keyof typeof configs }) {
   useEffect(() => {
     load();
     masters.accounts.list().then((r) => {
-      if (r.data && r.data.length > 0) setAccountsList(r.data);
+      if (r.data && r.data.length > 0) {
+        setAccounts(r.data);
+        setAccountsList(r.data);
+      }
     }).catch(() => {});
     masters.contacts.list().then((r) => {
       if (r.data) setContactsList(r.data);
     }).catch(() => {});
     masters.analytics.list().then((r) => {
-      if (r.data && r.data.length > 0) setAnalyticsList(r.data);
+      if (r.data && r.data.length > 0) {
+        setAnalytics(r.data);
+        setAnalyticsList(r.data);
+      }
     }).catch(() => {});
     masters.budgets.list().then((r) => {
       if (r.data && r.data.length > 0) setAllBudgetsList(r.data);
@@ -297,71 +333,15 @@ function Master({ kind }: { kind: keyof typeof configs }) {
     setError('');
     try {
       const payload = { ...form };
-
-      if (kind === 'contacts') {
-        if (!payload.code) payload.code = 'CNT-' + Math.floor(10000 + Math.random() * 90000);
-        if (!payload.party_type && !payload.contact_type) payload.party_type = 'customer';
-        else if (payload.contact_type) payload.party_type = payload.contact_type;
-        const addrParts = [
-          payload.street,
-          payload.city,
-          payload.state,
-          payload.country,
-          payload.pincode ? `- ${payload.pincode}` : '',
-        ].filter(Boolean);
-        if (addrParts.length > 0) payload.address = addrParts.join(', ');
-      }
-
-      if (kind === 'products') {
-        if (!payload.code) payload.code = 'PRD-' + Math.floor(10000 + Math.random() * 90000);
-        if (!payload.sku) payload.sku = payload.code;
-        payload.unit_price = Number(payload.sales_price || payload.unit_price || 0);
-        payload.cost_price = Number(payload.cost_price || payload.purchase_price || 0);
-      }
-
-      if (kind === 'accounts') {
-        if (!payload.code) payload.code = 'ACC-' + Math.floor(1000 + Math.random() * 9000);
-        if (!payload.account_type) payload.account_type = 'Asset';
-      }
-
-      if (kind === 'journals') {
-        if (!payload.code) payload.code = 'JRN-' + Math.floor(1000 + Math.random() * 9000);
-        if (!payload.journal_type) payload.journal_type = 'Sales';
-      }
-
-      if (kind === 'analytics') {
-        if (!payload.code) payload.code = 'ANL-' + Math.floor(1000 + Math.random() * 9000);
-      }
-
-      if (kind === 'budgets') {
-        if (!payload.stage) payload.stage = 'Draft';
-        if (payload.lines && payload.lines.length > 0) {
-          payload.amount = payload.lines.reduce((s: number, l: any) => s + Number(l.committed_amount || 0), 0);
-        }
-      }
-
-      for (const k of ['unit_price', 'cost_price', 'sales_price', 'rate', 'amount']) {
+      for (const k of ['sales_price', 'purchase_price', 'tax_rate', 'budget_amount']) {
         if (payload[k] !== undefined && payload[k] !== '') payload[k] = Number(payload[k]);
       }
-
-      let res: any;
-      try {
-        res = await c.api.create(payload);
-      } catch (errApi) {
-        res = { data: { ...payload, id: payload.id || Date.now() } };
+      for (const k of ['email', 'phone', 'address', 'tax_id', 'parent_id', 'analytic_account_id']) {
+        if (payload[k] === '') payload[k] = null;
       }
-
-      const created = res?.data || payload;
-
-      if (kind === 'products' && payload.image_url) {
-        localStorage.setItem(`product_img_${created.id || payload.code}`, payload.image_url);
-      }
-      if (kind === 'contacts' && payload.image_url) {
-        localStorage.setItem(`contact_img_${created.id || payload.code}`, payload.image_url);
-      }
-
+      await c.api.create(payload);
+      await load();
       setForm(null);
-      load();
     } catch (e) {
       setError(err(e));
     }
@@ -376,6 +356,93 @@ function Master({ kind }: { kind: keyof typeof configs }) {
       setError(err(e));
     }
   };
+
+  if (form) {
+    return (
+      <>
+        <PageHeader
+          title={c.title + ' · ' + (form.id ? 'Edit' : 'New')}
+          subtitle="The same form is used for creating and reviewing saved records."
+          back={() => setForm(null)}
+        />
+        <form className="record-form" onSubmit={save}>
+          <div className="form-grid">
+            {c.fields.map((f: any) => (
+              <Field key={f[0]} label={f[1]} required={f[3]}>
+                {f[2] === 'textarea' ? (
+                  <textarea
+                    value={form[f[0]] || ''}
+                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value })}
+                  />
+                ) : f[2] === 'select' ? (
+                  <select
+                    value={form[f[0]] || ''}
+                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value })}
+                  >
+                    <option value="">Select...</option>
+                    {f[4].map((x: string) => (
+                      <option key={x} value={x}>
+                        {x}
+                      </option>
+                    ))}
+                  </select>
+                ) : f[2] === 'selectAccount' ? (
+                  <select
+                    value={form[f[0]] || ''}
+                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value || null })}
+                  >
+                    <option value="">Select account...</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.code} · {a.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : f[2] === 'selectAnalytic' ? (
+                  <select
+                    value={form[f[0]] || ''}
+                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value || null })}
+                  >
+                    <option value="">Select analytic account...</option>
+                    {analytics.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.code} · {a.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : f[2] === 'selectTax' ? (
+                  <select
+                    value={form[f[0]] || ''}
+                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value || null })}
+                  >
+                    <option value="">No tax</option>
+                    {taxes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} · {t.rate}%
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={f[2]}
+                    value={form[f[0]] ?? ''}
+                    onChange={(e) => setForm({ ...form, [f[0]]: e.target.value })}
+                  />
+                )}
+              </Field>
+            ))}
+          </div>
+          {error && <div className="error">{error}</div>}
+          <div className="form-actions">
+            <Button type="submit">CONFIRM</Button>
+            <Button type="button" variant="secondary" onClick={() => setForm(null)}>
+              BACK
+            </Button>
+          </div>
+        </form>
+      </>
+    );
+  }
 
   return (
     <>
@@ -510,7 +577,7 @@ function Master({ kind }: { kind: keyof typeof configs }) {
                     <>
                       <td><b>{r.name}</b></td>
                       <td>{r.journal_type}</td>
-                      <td>{r.default_account_name || (accountsList.find(a => String(a.id) === String(r.default_account_id))?.name) || '—'}</td>
+                      <td>{r.default_account_name || (accounts.find(a => String(a.id) === String(r.default_account_id))?.name) || '—'}</td>
                     </>
                   )}
                   {kind === 'analytics' && (

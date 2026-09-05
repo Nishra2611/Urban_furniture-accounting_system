@@ -52,6 +52,15 @@ class Product(Base, TimestampMixin, ActiveMixin):
     )
 
 
+class Tax(Base, TimestampMixin, ActiveMixin):
+    __tablename__ = "taxes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    tax_type: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
 class ChartOfAccount(Base, TimestampMixin, ActiveMixin):
     __tablename__ = "chart_of_accounts"
 
