@@ -431,8 +431,116 @@ def seed_demo_300():
             elif cnt.last_value < value:
                 cnt.last_value = value
 
+        # 11. GENERATE 100 NEW USERS (Password: Hello@12345) & ASSIGN TRANSACTIONS / AUDIT LOGS TO THEM
+        first_names = [
+            "Aarav", "Ananya", "Rohan", "Neha", "Vikram", "Pooja", "Kabir", "Siddharth", "Meera", "Karan",
+            "Divya", "Aditya", "Riya", "Manish", "Sneha", "Arjun", "Tanvi", "Yash", "Ishita", "Tarun"
+        ]
+        last_names = [
+            "Sharma", "Verma", "Mehta", "Gupta", "Singh", "Reddy", "Nair", "Joshi", "Iyer", "Malhotra",
+            "Kapoor", "Chawla", "Bhasin", "Deshmukh", "Patel", "Shah", "Agarwal", "Bansal", "Rao", "Kulkarni"
+        ]
+
+        pwd_hash_common = hash_password("Hello@12345")
+        users_100 = []
+
+        for i in range(1, 101):
+            login_id = f"usr_{i:03d}"
+            fn = first_names[(i - 1) % len(first_names)]
+            ln = last_names[((i - 1) * 3) % len(last_names)]
+            full_name = f"{fn} {ln}"
+            email = f"{fn.lower()}.{ln.lower()}{i}@urbanfurniture.com"
+            
+            # Roles distribution: Administrator, Accountant, User
+            if i % 10 == 0:
+                role = UserRole.ADMINISTRATOR
+            elif i % 4 == 0:
+                role = UserRole.ACCOUNTANT
+            else:
+                role = UserRole.USER
+
+            # Contact linking for some portal users
+            contact_obj = contacts_map.get(all_customer_codes[(i - 1) % len(all_customer_codes)]) if i % 3 == 0 else None
+
+            u = one(db, User, login_id=login_id)
+            if not u:
+                u = User(
+                    login_id=login_id,
+                    name=full_name,
+                    email=email,
+                    hashed_password=pwd_hash_common,
+                    role=role,
+                    is_active=True,
+                    contact_id=contact_obj.id if contact_obj else None
+                )
+                db.add(u)
+                db.flush()
+                db.add(PasswordHistory(user_id=u.id, hashed_password=pwd_hash_common, created_at=datetime.now(timezone.utc)))
+            else:
+                u.name = full_name
+                u.email = email
+                u.hashed_password = pwd_hash_common
+                u.role = role
+                if contact_obj:
+                    u.contact_id = contact_obj.id
+            users_100.append(u)
+
+        db.flush()
+
+        # Distribute document creation across the 100 users so each user owns multiple transactions
+        for i, u in enumerate(users_100, 1):
+            # Assign SOs
+            so_num = f"SO-2026-{((i - 1) * 2 + 1):04d}"
+            so = sales_orders_map.get(so_num)
+            if so:
+                so.created_by_id = u.id
+
+            so_num2 = f"SO-2026-{((i - 1) * 2 + 2):04d}"
+            so2 = sales_orders_map.get(so_num2)
+            if so2:
+                so2.created_by_id = u.id
+
+            # Assign POs
+            po_num = f"PO-2026-{((i - 1) * 2 + 1):04d}"
+            po = purchase_orders_map.get(po_num)
+            if po:
+                po.created_by_id = u.id
+
+            # Assign Invoices
+            inv_num = f"INV-2026-{((i - 1) * 2 + 1):04d}"
+            inv = invoices_map.get(inv_num)
+            if inv:
+                inv.created_by_id = u.id
+
+            # Assign Bills
+            bill_num = f"BILL-2026-{((i - 1) * 2 + 1):04d}"
+            bill = bills_map.get(bill_num)
+            if bill:
+                bill.created_by_id = u.id
+
+            # Create realistic AuditLog entries for each user
+            audit_actions = [
+                ("User Login", f"Successful web session login for user {u.login_id}"),
+                ("Created Sales Order", f"Created order entry for client {u.name}"),
+                ("Posted Sale Invoice", f"Approved & posted invoice entry for user {u.login_id}"),
+                ("Updated Inventory Level", f"Adjusted inventory stock balance by {u.name}"),
+                ("Exported Financial Report", f"Exported General Ledger summary for Q1 2026")
+            ]
+            for act_title, act_desc in audit_actions:
+                if not db.query(AuditLog).filter(AuditLog.user_id == u.id, AuditLog.action == act_title).first():
+                    db.add(AuditLog(
+                        user_id=u.id,
+                        action=act_title,
+                        entity_type="UserActivity",
+                        entity_id=u.id,
+                        details=act_desc,
+                        created_at=datetime.now(timezone.utc) - timedelta(days=(i * 3) % 180)
+                    ))
+
+        db.flush()
+
         db.commit()
-        print("Successfully seeded 200+ entries in EVERY table across all product categories!")
+        print("Successfully seeded 200+ entries in EVERY table and 100 active users with password Hello@12345!")
 
     except Exception:
         db.rollback()
