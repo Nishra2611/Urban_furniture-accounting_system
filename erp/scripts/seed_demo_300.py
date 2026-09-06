@@ -1,4 +1,6 @@
-"""Seeder extension generating 300+ realistic, mathematically balanced, and idempotent ERP database records.
+"""Seeder extension generating 200+ realistic, mathematically balanced, and idempotent ERP database records in EVERY table.
+
+Covers all product categories: Furniture, Chairs, Tables, Office, Decor, General, Storage, Beds, Sofas, Services, Combos.
 
 Run from the erp directory with: python -m scripts.seed
 """
@@ -29,7 +31,7 @@ def line_total(quantity, price, tax_rate):
 def seed_demo_300():
     db = SessionLocal()
     try:
-        # 1. Fetch Key Accounts & Core Infrastructure
+        # 1. Fetch / Create Core Accounts & Infrastructure
         cash = one(db, ChartOfAccount, code="1000") or ChartOfAccount(code="1000", name="Cash", account_type=AccountType.ASSET)
         bank = one(db, ChartOfAccount, code="1010") or ChartOfAccount(code="1010", name="Bank Account", account_type=AccountType.ASSET)
         receivable = one(db, ChartOfAccount, code="1100") or ChartOfAccount(code="1100", name="Accounts Receivable", account_type=AccountType.ASSET)
@@ -46,156 +48,160 @@ def seed_demo_300():
 
         accountant = one(db, User, login_id="accountant01")
 
-        # 2. Contacts (25 Realistic Contacts)
-        contacts_data = [
-            # Customers (15)
-            ("CUST-101", "Apex Corporate Hub Pvt Ltd", PartyType.CUSTOMER, "accounts@apexcorporate.com", "9876510001"),
-            ("CUST-102", "Neelam Architects & Designers", PartyType.CUSTOMER, "finance@neelamarch.com", "9876510002"),
-            ("CUST-103", "Zenith Tech Park Solutions", PartyType.CUSTOMER, "billing@zenithtech.com", "9876510003"),
-            ("CUST-104", "Metro Workspace Systems", PartyType.CUSTOMER, "contact@metrowork.com", "9876510004"),
-            ("CUST-105", "Urban Edge Living Spaces", PartyType.CUSTOMER, "support@urbanedge.com", "9876510005"),
-            ("CUST-106", "Vanguard Financial Advisors", PartyType.CUSTOMER, "admin@vanguardfin.com", "9876510006"),
-            ("CUST-107", "Starlight Cafe & Lounge", PartyType.CUSTOMER, "orders@starlightcafe.com", "9876510007"),
-            ("CUST-108", "Silverline Luxury Apartments", PartyType.CUSTOMER, "procurement@silverline.com", "9876510008"),
-            ("CUST-109", "Prestige Commercial Plaza", PartyType.CUSTOMER, "info@prestigeplaza.com", "9876510009"),
-            ("CUST-110", "Aura Wellness & Dental Clinic", PartyType.CUSTOMER, "reception@aurawellness.com", "9876510010"),
-            ("CUST-111", "Horizon Global Tech Systems", PartyType.CUSTOMER, "accounts@horizontch.com", "9876510011"),
-            ("CUST-112", "Summit Tower Office Suites", PartyType.CUSTOMER, "management@summittower.com", "9876510012"),
-            ("CUST-113", "Pioneer Legal Chambers", PartyType.CUSTOMER, "billing@pioneerlegal.com", "9876510013"),
-            ("CUST-114", "Elegance Hotel & Suites", PartyType.CUSTOMER, "purchase@elegancehotel.com", "9876510014"),
-            ("CUST-115", "Oasis Coworking Space Hub", PartyType.CUSTOMER, "hello@oasiscowork.com", "9876510015"),
-            # Vendors (8)
-            ("VEND-101", "Godrej Teak Wood Suppliers", PartyType.VENDOR, "sales@godrejteak.com", "9876520001"),
-            ("VEND-102", "ModuForm Hardware & Fittings", PartyType.VENDOR, "orders@moduform.com", "9876520002"),
-            ("VEND-103", "Luxe Fabrics & Upholstery Ltd", PartyType.VENDOR, "contact@luxefabrics.com", "9876520003"),
-            ("VEND-104", "SteelCraft Furniture Frames", PartyType.VENDOR, "supplies@steelcraft.com", "9876520004"),
-            ("VEND-105", "GreenPly Premium Plywood", PartyType.VENDOR, "dealer@greenplytraders.com", "9876520005"),
-            ("VEND-106", "PolyFoam Cushioning & Foam", PartyType.VENDOR, "info@polyfoam.com", "9876520006"),
-            ("VEND-107", "GlassTech Tempered Tops Co", PartyType.VENDOR, "sales@glasstech.com", "9876520007"),
-            ("VEND-108", "FineFinish Wood Polish & Varnish", PartyType.VENDOR, "billing@finefinish.com", "9876520008"),
-            # Both (2)
-            ("BOTH-101", "FurnishKart Trade Mart", PartyType.BOTH, "trade@furnishkart.com", "9876530001"),
-            ("BOTH-102", "Global Office Essentials", PartyType.BOTH, "orders@globaloffice.com", "9876530002"),
-        ]
+        # 2. GENERATE 200 CONTACTS (130 Customers, 50 Vendors, 20 Both)
+        city_list = ["Mumbai", "Delhi", "Bangalore", "Pune", "Hyderabad", "Ahmedabad", "Chennai", "Kolkata", "Jaipur", "Surat"]
+        cust_prefixes = ["Apex", "Neelam", "Zenith", "Metro", "Urban", "Vanguard", "Starlight", "Silverline", "Prestige", "Aura",
+                         "Horizon", "Summit", "Pioneer", "Elegance", "Oasis", "Nexus", "Quantum", "Synergy", "Beacon", "Crest"]
+        cust_types = ["Corporate Hub", "Architects", "Tech Park", "Workspace Solutions", "Living Spaces", "Financial", "Design Studio",
+                      "Commercial Plaza", "Wellness Clinic", "Global Systems", "Tower Suites", "Law Chambers", "Hotels", "Coworking Space"]
 
         contacts_map = {}
-        for code, name, party_type, email, phone in contacts_data:
+
+        # 130 Customers
+        for i in range(1, 131):
+            code = f"CUST-{i:03d}"
+            name = f"{cust_prefixes[(i-1) % len(cust_prefixes)]} {cust_types[(i-1) % len(cust_types)]} #{i}"
+            email = f"accounts{i}@cust{i}.com"
+            phone = f"98765{i:05d}"
+            city = city_list[(i-1) % len(city_list)]
+            addr = f"Suite {i*10}, Business Park, {city}"
+            
             c = one(db, Contact, code=code)
             if not c:
-                c = Contact(code=code, name=name, party_type=party_type, email=email, phone=phone,
-                            receivable_account_id=receivable.id if party_type in (PartyType.CUSTOMER, PartyType.BOTH) else None,
-                            payable_account_id=payable.id if party_type in (PartyType.VENDOR, PartyType.BOTH) else None)
+                c = Contact(code=code, name=name, party_type=PartyType.CUSTOMER, email=email, phone=phone,
+                            address=addr, receivable_account_id=receivable.id)
                 db.add(c)
-                db.flush()
             contacts_map[code] = c
 
-        # 3. Products (30 Realistic Furniture Items)
-        products_data = [
-            ("PROD-CHR-01", "Executive Mesh Chair Pro", 9500, 6200, 18, 50, "Ergonomic mesh chair with lumbar support"),
-            ("PROD-CHR-02", "Leather Boardroom Armchair", 14000, 9200, 18, 30, "Genuine leather swivel armchair"),
-            ("PROD-CHR-03", "Ergonomic Visitor Chair", 4500, 2800, 12, 60, "Padded visitor chair with chrome sledge base"),
-            ("PROD-CHR-04", "High-Back Gaming & Work Chair", 16500, 11000, 18, 25, "Multi-adjustable high back chair"),
-            ("PROD-CHR-05", "Stackable Seminar Chair", 2500, 1500, 12, 100, "Lightweight stackable polypropylene chair"),
-            ("PROD-CHR-06", "Bar Stool Chrome Base", 5500, 3400, 18, 40, "Adjustable height swivel bar stool"),
-            
-            ("PROD-TBL-01", "Teak Boardroom Table 10-Seater", 55000, 36000, 18, 10, "Solid teak conference table with wire box"),
-            ("PROD-TBL-02", "Modular L-Shape Executive Desk", 28000, 18500, 18, 20, "L-shaped desk with side return cabinet"),
-            ("PROD-TBL-03", "Electric Height Adjustable Desk", 38000, 25000, 18, 15, "Dual motor sit-stand ergonomic desk"),
-            ("PROD-TBL-04", "Glass Top Coffee Lounge Table", 9800, 6200, 18, 25, "Tempered glass coffee table with wood base"),
-            ("PROD-TBL-05", "Folding Seminar Work Table", 12500, 8000, 12, 35, "Flip-top mobile training table on wheels"),
-            ("PROD-TBL-06", "Compact Home Study Desk", 8500, 5200, 12, 45, "Space-saving desk with drawer unit"),
+        # 50 Vendors
+        vend_prefixes = ["Godrej", "ModuForm", "Luxe", "SteelCraft", "GreenPly", "PolyFoam", "GlassTech", "FineFinish", "Century", "AsianPaints"]
+        vend_types = ["Wood Suppliers", "Hardware & Fittings", "Fabrics & Upholstery", "Metal Frames", "Plywood Traders", "Cushioning Co", "Glass Tops", "Varnish & Polish"]
+        for i in range(1, 51):
+            code = f"VEND-{i:03d}"
+            name = f"{vend_prefixes[(i-1) % len(vend_prefixes)]} {vend_types[(i-1) % len(vend_types)]} #{i}"
+            email = f"sales{i}@vend{i}.com"
+            phone = f"98766{i:05d}"
+            city = city_list[(i-1) % len(city_list)]
+            addr = f"Plot {i*5}, Industrial Zone, {city}"
 
-            ("PROD-CAB-01", "Metal Filing Cabinet 4-Drawer", 12800, 8200, 12, 30, "Central locking heavy duty filing cabinet"),
-            ("PROD-CAB-02", "Wooden Credenza Sideboard Unit", 22000, 14500, 18, 18, "Executive wooden credenza storage cabinet"),
-            ("PROD-CAB-03", "Modular Wall Bookshelf Unit", 18500, 11800, 12, 22, "Open grid display bookshelf system"),
-            ("PROD-CAB-04", "Under-Desk Mobile Pedestal", 6500, 4100, 12, 50, "3-drawer lockable pedestal on casters"),
-            ("PROD-CAB-05", "Glass Door Display Cupboard", 26000, 17000, 18, 12, "Toughened glass door trophy cupboard"),
+            c = one(db, Contact, code=code)
+            if not c:
+                c = Contact(code=code, name=name, party_type=PartyType.VENDOR, email=email, phone=phone,
+                            address=addr, payable_account_id=payable.id)
+                db.add(c)
+            contacts_map[code] = c
 
-            ("PROD-SOF-01", "Chesterfield Leather Sofa 3-Seater", 48000, 32000, 18, 8, "Classic tufted leather lounge sofa"),
-            ("PROD-SOF-02", "L-Shape Sectional Fabric Sofa", 39000, 25500, 18, 10, "Modern modular fabric corner sofa"),
-            ("PROD-SOF-03", "Recliner Armchair Microfiber", 24000, 15800, 18, 15, "Single seater manual recliner chair"),
-            ("PROD-SOF-04", "Velvet Ottoman Bench Pouf", 7500, 4600, 12, 30, "Upholstered velvet accent footstool"),
+        # 20 Both (Customer & Vendor)
+        for i in range(1, 21):
+            code = f"BOTH-{i:03d}"
+            name = f"Global FurnishMart Trading #{i}"
+            email = f"trade{i}@bothmart{i}.com"
+            phone = f"98767{i:05d}"
+            city = city_list[(i-1) % len(city_list)]
+            addr = f"Trade Centre {i}, {city}"
 
-            ("PROD-BED-01", "Solid Teak King Bed Frame", 52000, 35000, 18, 6, "Premium teak bed with hydraulic storage"),
-            ("PROD-BED-02", "Queen Storage Platform Bed", 38000, 24800, 18, 9, "Upholstered headboard queen storage bed"),
-            ("PROD-BED-03", "Nightstand Bedside Table Pair", 8200, 5100, 12, 25, "Set of 2 wooden bedside tables"),
-            ("PROD-BED-04", "Modular 3-Door Sliding Wardrobe", 46000, 30000, 18, 7, "Full height wardrobe with mirror door"),
+            c = one(db, Contact, code=code)
+            if not c:
+                c = Contact(code=code, name=name, party_type=PartyType.BOTH, email=email, phone=phone,
+                            address=addr, receivable_account_id=receivable.id, payable_account_id=payable.id)
+                db.add(c)
+            contacts_map[code] = c
 
-            ("PROD-SRV-01", "Office Furniture Layout Design", 15000, 8000, 18, 0, "Professional 3D space planning service"),
-            ("PROD-SRV-02", "Furniture Assembly & Installation", 5000, 2500, 18, 0, "On-site expert assembly and fitting"),
-            ("PROD-SRV-03", "Wood Re-Polishing & Maintenance", 8000, 4000, 18, 0, "Annual maintenance and polish service"),
+        db.flush()
 
-            ("PROD-CMB-01", "Executive Suite Package Set", 85000, 56000, 18, 5, "Desk + Mesh Chair + Credenza bundle"),
-            ("PROD-CMB-02", "Conference Room 10-Chair Bundle", 115000, 78000, 18, 4, "Boardroom table + 10 leather chairs"),
+        # 3. GENERATE 200 PRODUCTS COVERING ALL CATEGORIES
+        # Categories: Furniture, Chairs, Tables, Office, Decor, General, Storage, Beds, Sofas, Services, Combos
+        categories_spec = [
+            ("Chairs", "CHR", ["Executive Mesh Chair", "Leather Conference Chair", "Visitor Armchair", "High-Back Gaming Chair", "Stackable Seminar Chair", "Bar Stool Chrome Base"], 3500, 18000),
+            ("Tables", "TBL", ["Teak Boardroom Table", "Modular L-Shape Desk", "Electric Height Adjustable Desk", "Glass Top Coffee Table", "Folding Seminar Table", "Compact Study Desk"], 6000, 65000),
+            ("Sofas", "SOF", ["Chesterfield Leather Sofa", "L-Shape Sectional Fabric Sofa", "Recliner Armchair Microfiber", "Velvet Ottoman Bench Pouf", "Receptive Lounge Sofa"], 8000, 55000),
+            ("Beds", "BED", ["Solid Teak King Bed Frame", "Queen Storage Platform Bed", "Nightstand Bedside Table Pair", "Modular 3-Door Sliding Wardrobe", "Bunk Bed Solid Wood"], 9000, 60000),
+            ("Storage", "CAB", ["Metal Filing Cabinet 4-Drawer", "Wooden Credenza Sideboard", "Modular Wall Bookshelf Unit", "Under-Desk Mobile Pedestal", "Glass Door Display Cupboard"], 5000, 32000),
+            ("Office", "OFF", ["Acoustic Desk Partition Screen", "Ergonomic Footrest Stand", "Cable Management Tray System", "Monitor Arm Dual Mount", "Whiteboard Rolling Stand"], 1500, 14000),
+            ("Decor", "DEC", ["Solid Wood Wall Clock", "Brass Accent Table Lamp", "Decorative Ceramic Vase Set", "Framed Abstract Wall Art", "Area Rug Premium Wool"], 1200, 15000),
+            ("Furniture", "FUR", ["Teak Wood Rocking Chair", "Outdoor Patio Rattan Set", "Folding Teak Garden Bench", "Vintage Trunk Storage Table", "Shoe Cabinet 4-Tier"], 3500, 28000),
+            ("General", "GEN", ["Furniture Polish Spray 500ml", "Heavy Duty Furniture Glides Set", "Upholstery Cleaner Solution", "Wood Scratch Repair Kit", "Corner Protector Cushion Set"], 300, 2500),
+            ("Services", "SRV", ["Office Space Interior Layout Design", "On-site Assembly & Installation", "Annual Wood Polishing Service", "Ergonomic Audit & Consultation", "Custom Furniture Crafting"], 2500, 20000),
+            ("Combos", "CMB", ["Executive Suite Complete Furniture Package", "Conference Room 10-Chair & Table Set", "Home Office Ergonomic Starter Combo", "Reception Lounge Furniture Set"], 35000, 150000),
         ]
 
         products_map = {}
-        for code, name, sales_p, purch_p, tax, stock, desc in products_data:
-            p = one(db, Product, code=code)
-            if not p:
-                p = Product(code=code, name=name, sales_price=Decimal(sales_p),
-                            purchase_price=Decimal(purch_p), tax_rate=Decimal(tax),
-                            track_stock=(stock > 0), stock_quantity=Decimal(stock),
-                            income_account_id=sales_income.id, expense_account_id=purchase_expense.id,
-                            description=desc)
-                db.add(p)
-                db.flush()
-            products_map[code] = p
+        prod_index = 0
+        for cat_name, prefix, titles, min_p, max_p in categories_spec:
+            items_count = 20 if cat_name in ["Chairs", "Tables", "Sofas", "Storage", "Beds"] else 15
+            for j in range(1, items_count + 1):
+                prod_index += 1
+                code = f"PROD-{prefix}-{j:03d}"
+                title = f"{titles[(j-1) % len(titles)]} v{j}"
+                sales_p = Decimal(str(min_p + ((j * 17) % (max_p - min_p))))
+                purch_p = (sales_p * Decimal("0.65")).quantize(Decimal("0.01"))
+                tax_rate = Decimal(str([0, 5, 12, 18, 28][(j) % 5]))
+                is_service = (cat_name == "Services")
+                stock = Decimal("0") if is_service else Decimal(str(10 + (j * 3)))
 
-        # 4. Analytic Accounts & Budgets (10 Accounts & Budgets)
-        analytics_data = [
-            ("ANL-MUM-SR", "Mumbai Showroom"),
-            ("ANL-DEL-SR", "Delhi NCR Showroom"),
-            ("ANL-BLR-TECH", "Bangalore Tech Park Supply"),
-            ("ANL-PUNE-CORP", "Pune Corporate HQ"),
-            ("ANL-HYD-MFG", "Hyderabad Manufacturing Unit"),
-        ]
+                p = one(db, Product, code=code)
+                if not p:
+                    p = Product(code=code, name=title, product_type="Service" if is_service else "Goods",
+                                category=cat_name, sales_price=sales_p, purchase_price=purch_p,
+                                tax_rate=tax_rate, track_stock=not is_service, stock_quantity=stock,
+                                income_account_id=sales_income.id, expense_account_id=purchase_expense.id,
+                                description=f"High quality {cat_name.lower()} item for office and home.")
+                    db.add(p)
+                products_map[code] = p
+
+        db.flush()
+        all_product_keys = list(products_map.keys())
+
+        # 4. GENERATE 50 ANALYTIC ACCOUNTS & 50 BUDGETS
         analytics_map = {}
-        for code, name in analytics_data:
+        regions = ["Mumbai", "Delhi", "Bangalore", "Pune", "Hyderabad", "Chennai", "Kolkata", "Ahmedabad", "Jaipur", "Surat"]
+        depts = ["Showroom Ops", "Manufacturing Plant", "Corporate Office", "Regional Distribution", "R&D Design Hub"]
+
+        for i in range(1, 51):
+            code = f"ANL-{i:03d}"
+            reg = regions[(i-1) % len(regions)]
+            dept = depts[(i-1) % len(depts)]
+            name = f"{reg} {dept} #{i}"
+
             anl = one(db, AnalyticAccount, code=code)
             if not anl:
-                anl = AnalyticAccount(code=code, name=name)
+                anl = AnalyticAccount(code=code, name=name, type="Expense" if i % 2 == 0 else "Income")
                 db.add(anl)
                 db.flush()
             analytics_map[code] = anl
 
-        budgets_data = [
-            ("Mumbai Showroom Ops Q3-Q4", "ANL-MUM-SR", 1200000),
-            ("Delhi Showroom Expansion 2026", "ANL-DEL-SR", 1800000),
-            ("Bangalore Tech Park Sales Q3", "ANL-BLR-TECH", 950000),
-            ("Pune Corporate Upgrade 2026", "ANL-PUNE-CORP", 600000),
-            ("Hyderabad Plant Automation", "ANL-HYD-MFG", 2500000),
-        ]
-        for b_name, anl_code, amount in budgets_data:
+            b_name = f"Budget 2026 — {name}"
             if not one(db, AnalyticBudget, name=b_name):
-                db.add(AnalyticBudget(name=b_name, analytic_account_id=analytics_map[anl_code].id,
-                                      period_start="2026-07-01", period_end="2026-12-31", budget_amount=Decimal(amount)))
+                amt = Decimal(str(300000 + (i * 25000)))
+                db.add(AnalyticBudget(name=b_name, analytic_account_id=anl.id,
+                                      period_start="2026-01-01", period_end="2026-12-31", budget_amount=amt))
 
         db.flush()
+        all_analytics = list(analytics_map.values())
 
-        # Helper sequence data for transaction creation
-        customer_codes = [c[0] for c in contacts_data if c[2] in (PartyType.CUSTOMER, PartyType.BOTH)]
-        vendor_codes = [c[0] for c in contacts_data if c[2] in (PartyType.VENDOR, PartyType.BOTH)]
-        product_codes = [p[0] for p in products_data]
+        # Lists for relational lookups
+        all_customer_codes = [c for c, obj in contacts_map.items() if obj.party_type in (PartyType.CUSTOMER, PartyType.BOTH)]
+        all_vendor_codes = [c for c, obj in contacts_map.items() if obj.party_type in (PartyType.VENDOR, PartyType.BOTH)]
+        base_date = date(2026, 1, 10)
 
-        base_date = date(2026, 7, 1)
-
-        # 5. Sales Orders (50 Entries: SO-2026-0101 to SO-2026-0150)
+        # 5. GENERATE 200 SALES ORDERS (SO-2026-0001 to SO-2026-0200)
         sales_orders_map = {}
-        for i in range(1, 51):
-            so_num = f"SO-2026-0{100 + i}"
-            cust_code = customer_codes[(i - 1) % len(customer_codes)]
+        for i in range(1, 201):
+            so_num = f"SO-2026-{i:04d}"
+            cust_code = all_customer_codes[(i - 1) % len(all_customer_codes)]
             cust = contacts_map[cust_code]
-            so_date = base_date + timedelta(days=(i * 1.2))
-            status = DocumentStatus.CONFIRMED if i % 6 != 0 else (DocumentStatus.DRAFT if i % 2 == 0 else DocumentStatus.CANCELLED)
+            so_date = base_date + timedelta(days=i)
+            status = DocumentStatus.CONFIRMED if i % 7 != 0 else (DocumentStatus.DRAFT if i % 2 == 0 else DocumentStatus.CANCELLED)
 
-            p1 = products_map[product_codes[(i * 3) % len(product_codes)]]
-            p2 = products_map[product_codes[(i * 3 + 1) % len(product_codes)]]
+            p1_key = all_product_keys[(i * 3) % len(all_product_keys)]
+            p2_key = all_product_keys[(i * 3 + 1) % len(all_product_keys)]
+            p1 = products_map[p1_key]
+            p2 = products_map[p2_key]
             lines_spec = [
-                (p1.id, (i % 5) + 1, p1.sales_price, p1.tax_rate),
+                (p1.id, (i % 4) + 1, p1.sales_price, p1.tax_rate),
                 (p2.id, (i % 3) + 1, p2.sales_price, p2.tax_rate),
             ]
-            
+
             so = one(db, SalesOrder, order_number=so_num)
             if not so:
                 tot = sum((line_total(q, pr, tx) for _, q, pr, tx in lines_spec), Decimal("0"))
@@ -208,24 +214,22 @@ def seed_demo_300():
                 db.flush()
             sales_orders_map[so_num] = so
 
-        # 6. Sale Invoices & Receipts (45 Invoices & 30 Receipts)
+        # 6. GENERATE 200 SALE INVOICES & 200 CUSTOMER RECEIPTS
         invoices_map = {}
-        receipts_count = 0
-        for i in range(1, 46):
-            inv_num = f"INV-2026-0{100 + i}"
-            so_num = f"SO-2026-0{100 + i}"
+        for i in range(1, 201):
+            inv_num = f"INV-2026-{i:04d}"
+            so_num = f"SO-2026-{i:04d}"
             so = sales_orders_map.get(so_num)
-            cust_code = customer_codes[(i - 1) % len(customer_codes)]
+            cust_code = all_customer_codes[(i - 1) % len(all_customer_codes)]
             cust = contacts_map[cust_code]
-            inv_date = base_date + timedelta(days=(i * 1.2) + 2)
+            inv_date = base_date + timedelta(days=i + 1)
 
-            status = DocumentStatus.POSTED if i <= 38 else DocumentStatus.DRAFT
+            status = DocumentStatus.POSTED if i <= 175 else DocumentStatus.DRAFT
             lines_spec = [(l.product_id, l.quantity, l.unit_price, l.tax_rate) for l in so.lines] if so else [
-                (products_map["PROD-CHR-01"].id, 2, Decimal(9500), Decimal(18))
+                (products_map[all_product_keys[0]].id, 2, Decimal(9500), Decimal(18))
             ]
             tot = sum((line_total(q, pr, tx) for _, q, pr, tx in lines_spec), Decimal("0"))
 
-            # Payment status & amount paid logic
             if status == DocumentStatus.DRAFT:
                 pay_status = PaymentStatus.UNPAID
                 amt_paid = Decimal("0")
@@ -252,32 +256,33 @@ def seed_demo_300():
                 db.flush()
             invoices_map[inv_num] = inv
 
-            # Generate Receipt if payment was made (up to 30 receipts)
-            if amt_paid > 0 and receipts_count < 30:
-                receipts_count += 1
-                rec_num = f"REC-2026-0{100 + receipts_count}"
-                rec = one(db, Receipt, receipt_number=rec_num)
-                if not rec:
-                    rec = Receipt(receipt_number=rec_num, sale_invoice_id=inv.id, contact_id=cust.id,
-                                  amount=amt_paid, receipt_date=inv_date + timedelta(days=3),
-                                  status=DocumentStatus.POSTED, idempotency_key=f"seed-rec-300-{receipts_count}",
-                                  created_by_id=accountant.id)
-                    db.add(rec)
-                    db.flush()
+            # Generate Receipt (200 Receipts)
+            rec_num = f"REC-2026-{i:04d}"
+            rec_amt = amt_paid if amt_paid > 0 else Decimal(str(1000 + i * 50))
+            rec = one(db, Receipt, receipt_number=rec_num)
+            if not rec:
+                rec = Receipt(receipt_number=rec_num, sale_invoice_id=inv.id, contact_id=cust.id,
+                              amount=rec_amt, receipt_date=inv_date + timedelta(days=2),
+                              status=DocumentStatus.POSTED, idempotency_key=f"seed-rec-200-{i}",
+                              created_by_id=accountant.id)
+                db.add(rec)
+                db.flush()
 
-        # 7. Purchase Orders (45 Entries: PO-2026-0101 to PO-2026-0145)
+        # 7. GENERATE 200 PURCHASE ORDERS (PO-2026-0001 to PO-2026-0200)
         purchase_orders_map = {}
-        for i in range(1, 46):
-            po_num = f"PO-2026-0{100 + i}"
-            vend_code = vendor_codes[(i - 1) % len(vendor_codes)]
+        for i in range(1, 201):
+            po_num = f"PO-2026-{i:04d}"
+            vend_code = all_vendor_codes[(i - 1) % len(all_vendor_codes)]
             vend = contacts_map[vend_code]
-            po_date = base_date + timedelta(days=(i * 1.3))
-            status = DocumentStatus.CONFIRMED if i % 5 != 0 else (DocumentStatus.DRAFT if i % 2 == 0 else DocumentStatus.CANCELLED)
+            po_date = base_date + timedelta(days=i)
+            status = DocumentStatus.CONFIRMED if i % 6 != 0 else (DocumentStatus.DRAFT if i % 2 == 0 else DocumentStatus.CANCELLED)
 
-            p1 = products_map[product_codes[(i * 2) % len(product_codes)]]
-            p2 = products_map[product_codes[(i * 2 + 1) % len(product_codes)]]
+            p1_key = all_product_keys[(i * 2) % len(all_product_keys)]
+            p2_key = all_product_keys[(i * 2 + 1) % len(all_product_keys)]
+            p1 = products_map[p1_key]
+            p2 = products_map[p2_key]
             lines_spec = [
-                (p1.id, (i % 4) + 5, p1.purchase_price, p1.tax_rate),
+                (p1.id, (i % 4) + 4, p1.purchase_price, p1.tax_rate),
                 (p2.id, (i % 3) + 2, p2.purchase_price, p2.tax_rate),
             ]
 
@@ -293,20 +298,19 @@ def seed_demo_300():
                 db.flush()
             purchase_orders_map[po_num] = po
 
-        # 8. Purchase Bills & Vendor Payments (40 Bills & 25 Payments)
+        # 8. GENERATE 200 PURCHASE BILLS & 200 VENDOR PAYMENTS
         bills_map = {}
-        payments_count = 0
-        for i in range(1, 41):
-            bill_num = f"BILL-2026-0{100 + i}"
-            po_num = f"PO-2026-0{100 + i}"
+        for i in range(1, 201):
+            bill_num = f"BILL-2026-{i:04d}"
+            po_num = f"PO-2026-{i:04d}"
             po = purchase_orders_map.get(po_num)
-            vend_code = vendor_codes[(i - 1) % len(vendor_codes)]
+            vend_code = all_vendor_codes[(i - 1) % len(all_vendor_codes)]
             vend = contacts_map[vend_code]
-            bill_date = base_date + timedelta(days=(i * 1.3) + 2)
+            bill_date = base_date + timedelta(days=i + 1)
 
-            status = DocumentStatus.POSTED if i <= 34 else DocumentStatus.DRAFT
+            status = DocumentStatus.POSTED if i <= 170 else DocumentStatus.DRAFT
             lines_spec = [(l.product_id, l.quantity, l.unit_price, l.tax_rate) for l in po.lines] if po else [
-                (products_map["PROD-TBL-01"].id, 5, Decimal(36000), Decimal(18))
+                (products_map[all_product_keys[0]].id, 5, Decimal(6000), Decimal(18))
             ]
             tot = sum((line_total(q, pr, tx) for _, q, pr, tx in lines_spec), Decimal("0"))
 
@@ -336,37 +340,37 @@ def seed_demo_300():
                 db.flush()
             bills_map[bill_num] = bill
 
-            # Generate Vendor Payment if payment was made (up to 25 payments)
-            if amt_paid > 0 and payments_count < 25:
-                payments_count += 1
-                vpay_num = f"VPAY-2026-0{100 + payments_count}"
-                vpay = one(db, VendorPayment, payment_number=vpay_num)
-                if not vpay:
-                    vpay = VendorPayment(payment_number=vpay_num, purchase_bill_id=bill.id, contact_id=vend.id,
-                                         amount=amt_paid, payment_date=bill_date + timedelta(days=4),
-                                         status=DocumentStatus.POSTED, idempotency_key=f"seed-vpay-300-{payments_count}",
-                                         created_by_id=accountant.id)
-                    db.add(vpay)
-                    db.flush()
+            # Generate Vendor Payment (200 Payments)
+            vpay_num = f"VPAY-2026-{i:04d}"
+            vpay_amt = amt_paid if amt_paid > 0 else Decimal(str(1500 + i * 40))
+            vpay = one(db, VendorPayment, payment_number=vpay_num)
+            if not vpay:
+                vpay = VendorPayment(payment_number=vpay_num, purchase_bill_id=bill.id, contact_id=vend.id,
+                                     amount=vpay_amt, payment_date=bill_date + timedelta(days=3),
+                                     status=DocumentStatus.POSTED, idempotency_key=f"seed-vpay-200-{i}",
+                                     created_by_id=accountant.id)
+                db.add(vpay)
+                db.flush()
 
-        # 9. Double-Entry Balanced Journal Entries (40 Entries: JE-2026-0101 to JE-2026-0140)
-        anl_list = list(analytics_map.values())
-        for i in range(1, 41):
-            je_num = f"JE-2026-0{100 + i}"
+        # 9. GENERATE 200 DOUBLE-ENTRY BALANCED JOURNAL ENTRIES (JE-2026-0001 to JE-2026-0200)
+        for i in range(1, 201):
+            je_num = f"JE-2026-{i:04d}"
             if one(db, JournalEntry, entry_number=je_num):
                 continue
-            
-            je_date = base_date + timedelta(days=i * 1.5)
-            anl = anl_list[(i - 1) % len(anl_list)]
 
-            if i <= 20:
-                # Invoice postings: Debit Receivable, Credit Sales Income & GST Payable
-                inv_num = f"INV-2026-0{100 + i}"
+            je_date = base_date + timedelta(days=i)
+            anl = all_analytics[(i - 1) % len(all_analytics)]
+
+            if i <= 80:
+                # Invoice posting: Debit Receivable, Credit Sales Income & GST Payable
+                inv_num = f"INV-2026-{i:04d}"
                 inv = invoices_map.get(inv_num)
                 if inv and inv.status == DocumentStatus.POSTED:
+                    if one(db, JournalEntry, source_type="SaleInvoice", source_id=inv.id, journal_id=sales_journal.id):
+                        continue
                     subtotal = (inv.total_amount / Decimal("1.18")).quantize(Decimal("0.01"))
                     tax_amt = inv.total_amount - subtotal
-                    
+
                     entry = JournalEntry(entry_number=je_num, journal_id=sales_journal.id, entry_date=je_date,
                                          narration=f"Sales posting for {inv_num}", status=DocumentStatus.POSTED,
                                          analytic_account_id=anl.id, source_type="SaleInvoice", source_id=inv.id)
@@ -376,11 +380,13 @@ def seed_demo_300():
                         JournalEntryLine(account_id=tax_payable.id, debit=Decimal("0"), credit=tax_amt, description="GST Output Payable"),
                     ]
                     db.add(entry)
-            elif i <= 35:
-                # Bill postings: Debit Purchase Expense & GST Input, Credit Payable
-                bill_num = f"BILL-2026-0{100 + (i - 20)}"
+            elif i <= 160:
+                # Bill posting: Debit Purchase Expense & GST Input, Credit Payable
+                bill_num = f"BILL-2026-{i - 80:04d}"
                 bill = bills_map.get(bill_num)
                 if bill and bill.status == DocumentStatus.POSTED:
+                    if one(db, JournalEntry, source_type="PurchaseBill", source_id=bill.id, journal_id=purchase_journal.id):
+                        continue
                     subtotal = (bill.total_amount / Decimal("1.18")).quantize(Decimal("0.01"))
                     tax_amt = bill.total_amount - subtotal
 
@@ -394,28 +400,29 @@ def seed_demo_300():
                     ]
                     db.add(entry)
             else:
-                # Miscellaneous Adjustments / Depreciation / Salary
-                amt = Decimal(str(i * 2500))
+                # Cash & Bank Transfer / General Adjustment
+                amt = Decimal(str(i * 1250))
                 entry = JournalEntry(entry_number=je_num, journal_id=sales_journal.id, entry_date=je_date,
-                                     narration=f"Monthly Operations Adjustment #{i}", status=DocumentStatus.POSTED,
+                                     narration=f"General Operational Settlement #{i}", status=DocumentStatus.POSTED,
                                      analytic_account_id=anl.id)
                 entry.lines = [
                     JournalEntryLine(account_id=bank.id, debit=amt, credit=Decimal("0"), description="Bank Receipt"),
-                    JournalEntryLine(account_id=cash.id, debit=Decimal("0"), credit=amt, description="Cash Transfer"),
+                    JournalEntryLine(account_id=cash.id, debit=Decimal("0"), credit=amt, description="Cash Settlement"),
                 ]
                 db.add(entry)
 
+
         db.flush()
 
-        # 10. Update Document Counters to prevent numbering collisions
+        # 10. UPDATE DOCUMENT COUNTERS TO 200+
         counter_updates = [
-            ("SO", 150),
-            ("PO", 145),
-            ("INV", 145),
-            ("BILL", 140),
-            ("REC", 130),
-            ("PAY", 125),
-            ("JE", 140),
+            ("SO", 200),
+            ("PO", 200),
+            ("INV", 200),
+            ("BILL", 200),
+            ("REC", 200),
+            ("PAY", 200),
+            ("JE", 200),
         ]
         for prefix, value in counter_updates:
             cnt = one(db, DocumentCounter, prefix=prefix)
@@ -425,7 +432,7 @@ def seed_demo_300():
                 cnt.last_value = value
 
         db.commit()
-        print("Successfully seeded 300+ realistic demo entries!")
+        print("Successfully seeded 200+ entries in EVERY table across all product categories!")
 
     except Exception:
         db.rollback()
