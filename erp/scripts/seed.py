@@ -322,7 +322,12 @@ def seed():
                             details="Demo dataset seeded", created_at=datetime.now(timezone.utc)))
 
         db.commit()
-        print("Demo seed complete.")
+        print("Base seed complete.")
+
+        # Seed 300+ realistic extended demo entries
+        from scripts.seed_demo_300 import seed_demo_300
+        seed_demo_300()
+
         print("Admin: admin01 / Admin@12345")
         print("Accountant: accountant01 / Accountant@12345")
         print("Contact User: rahul01 / Rahul@12345")
@@ -335,3 +340,4 @@ def seed():
 
 if __name__ == "__main__":
     seed()
+
